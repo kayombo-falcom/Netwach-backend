@@ -2,10 +2,40 @@ from rest_framework import generics
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from accounts.models import Role, User
 from accounts.permissions import HasRole
-from accounts.serializers import UserSerializer, UserWriteSerializer
+from accounts.serializers import (
+    ChangePasswordSerializer,
+    LoginSerializer,
+    PasswordAwareTokenRefreshSerializer,
+    UserSerializer,
+    UserWriteSerializer,
+)
+
+
+class LoginView(TokenObtainPairView):
+    """Login endpoint enforcing the account-lockout policy via LoginSerializer."""
+
+    serializer_class = LoginSerializer
+
+
+class RefreshView(TokenRefreshView):
+    """Refresh endpoint enforcing the password-change policy via PasswordAwareTokenRefreshSerializer."""
+
+    serializer_class = PasswordAwareTokenRefreshSerializer
+
+
+class ChangePasswordView(APIView):
+    """Self-service password change. Succeeding invalidates every outstanding
+    session/token for the user, including the one used to make this request."""
+
+    def post(self, request: Request) -> Response:
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Password updated. Please log in again."})
 
 
 class MeView(APIView):

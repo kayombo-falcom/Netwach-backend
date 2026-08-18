@@ -70,7 +70,7 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'accounts.authentication.IdleTimeoutJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -83,6 +83,15 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'UPDATE_LAST_LOGIN': True,
 }
+
+# Account security policies
+# SECURITY_MAX_LOGIN_ATTEMPTS: failed logins allowed before an account is locked.
+# SECURITY_LOCKOUT_DURATION_MINUTES: how long a locked account stays locked.
+# SECURITY_IDLE_SESSION_TIMEOUT_MINUTES: how long a session may go without any
+# authenticated request before it's treated as expired, regardless of token lifetime.
+SECURITY_MAX_LOGIN_ATTEMPTS = int(os.environ.get('SECURITY_MAX_LOGIN_ATTEMPTS', 5))
+SECURITY_LOCKOUT_DURATION_MINUTES = int(os.environ.get('SECURITY_LOCKOUT_DURATION_MINUTES', 15))
+SECURITY_IDLE_SESSION_TIMEOUT_MINUTES = int(os.environ.get('SECURITY_IDLE_SESSION_TIMEOUT_MINUTES', 30))
 
 ROOT_URLCONF = 'netwatch_backend.urls'
 
