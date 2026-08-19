@@ -17,11 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from accounts.views import UserDetailView, UserListCreateView
-
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('accounts.urls')),
-    path('api/users/', UserListCreateView.as_view(), name='user-list'),
-    path('api/users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('api/v1/', include('netwatch_backend.urls_v1')),
 ]

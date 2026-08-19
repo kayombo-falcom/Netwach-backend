@@ -5,21 +5,13 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.db import models
 from django.utils import timezone
 
-from accounts.managers import UserManager
-
-
-class Role(models.TextChoices):
-    ADMIN = "Admins", "Admins"
-    STAFF = "Staff", "Staff"
-    STUDENT = "Students", "Students"
-    GUEST = "Guests", "Guests"
-    IOT = "IoT", "IoT"
+from users.managers import UserManager
 
 
 class User(AbstractBaseUser):
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=150)
-    role = models.CharField(max_length=20, choices=Role.choices)
+    role = models.CharField(max_length=40)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
 
@@ -28,7 +20,7 @@ class User(AbstractBaseUser):
     locked_until = models.DateTimeField(null=True, blank=True)
 
     # Idle-session-timeout policy state, refreshed on every authenticated request
-    # by accounts.authentication.IdleTimeoutJWTAuthentication.
+    # by authentication.backends.IdleTimeoutJWTAuthentication.
     last_activity = models.DateTimeField(null=True, blank=True)
 
     # Bumped by set_password() below; any JWT issued before this moment is treated
@@ -68,8 +60,10 @@ class User(AbstractBaseUser):
         self.save(update_fields=["failed_login_attempts", "locked_until"])
 
     def register_successful_login(self) -> None:
-        """Clears any lockout state after a successful authentication."""
-        if self.failed_login_attempts or self.locked_until:
-            self.failed_login_attempts = 0
-            self.locked_until = None
-            self.save(update_fields=["failed_login_attempts", "locked_until"])
+        """Clears any lockout state and resets the idle-session clock after a
+        successful authentication — otherwise a stale last_activity from a
+        previous, timed-out session would fail the very next request."""
+        self.failed_login_attempts = 0
+        self.locked_until = None
+        self.last_activity = timezone.now()
+        self.save(update_fields=["failed_login_attempts", "locked_until", "last_activity"])

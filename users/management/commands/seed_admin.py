@@ -2,7 +2,8 @@ import os
 
 from django.core.management.base import BaseCommand
 
-from accounts.models import Role, User
+from authorization.models import ADMIN_ROLE_NAME
+from users.models import User
 
 
 class Command(BaseCommand):
@@ -21,5 +22,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Admin user '{email}' already exists — skipping."))
             return
 
-        User.objects.create_user(email=email, password=password, name=name, role=Role.ADMIN)
+        User.objects.create_user(email=email, password=password, name=name, role=ADMIN_ROLE_NAME)
         self.stdout.write(self.style.SUCCESS(f"Created admin user '{email}'."))

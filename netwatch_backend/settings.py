@@ -48,7 +48,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'accounts',
+    'authorization',
+    'users',
+    'authentication',
 ]
 
 MIDDLEWARE = [
@@ -62,7 +64,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = 'users.User'
 
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ALLOWED_ORIGINS', 'http://localhost:3000'
@@ -70,7 +72,7 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'accounts.authentication.IdleTimeoutJWTAuthentication',
+        'authentication.backends.IdleTimeoutJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',

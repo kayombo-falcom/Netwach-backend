@@ -1,6 +1,8 @@
 # NetWatch Backend
 
-Django + DRF API for the NetWatch dashboard. Auth is JWT-based (`djangorestframework-simplejwt`) against a custom `accounts.User` model (email + role, no Django username/staff/superuser defaults).
+Django + DRF API for the NetWatch dashboard. Auth is JWT-based (`djangorestframework-simplejwt`) against a custom `users.User` model (email + role, no Django username/staff/superuser defaults).
+
+Organized as a modular monolith — one Django app per business capability (`users`, `authorization`, `authentication`), each with its own models/repositories/services/serializers/views/urls/tests, plus a `shared/` package for cross-cutting infrastructure. The API is versioned under `/api/v1/`.
 
 ## Setup
 
@@ -42,8 +44,8 @@ python manage.py seed_admin
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| POST | `/api/auth/login/` | `{ "email", "password" }` | `{ "access", "refresh" }` |
-| POST | `/api/auth/refresh/` | `{ "refresh" }` | `{ "access", "refresh" }` |
+| POST | `/api/v1/auth/login/` | `{ "email", "password" }` | `{ "access", "refresh" }` |
+| POST | `/api/v1/auth/refresh/` | `{ "refresh" }` | `{ "access", "refresh" }` |
 
 Access tokens last 15 minutes, refresh tokens 7 days (rotating). Send `Authorization: Bearer <access>` on authenticated requests.
 
