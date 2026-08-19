@@ -70,8 +70,21 @@ module's `models.py` directly; go through its `repositories.py`.
 python manage.py makemigrations <app_name>
 python manage.py migrate
 
+# run tests for one module, or everything
+python manage.py test <app_name>
+python manage.py test
 
+# see it live
+docker compose up                 # full stack (API + Postgres)
+python manage.py runserver        # API only, if Postgres is reachable directly
+```
 
+Before committing:
+
+```bash
+python manage.py makemigrations --check
+python manage.py test
+```
 
 
 ## API versioning

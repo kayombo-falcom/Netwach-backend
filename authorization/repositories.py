@@ -20,6 +20,10 @@ class RoleRepository(BaseRepository[Role]):
     def create(self, name: str) -> Role:
         return Role.objects.create(name=name)
 
+    def save(self, role: Role) -> Role:
+        role.save()
+        return role
+
 
 class RolePermissionRepository(BaseRepository[RolePermission]):
     model = RolePermission
@@ -28,8 +32,7 @@ class RolePermissionRepository(BaseRepository[RolePermission]):
         return {(r.role, r.permission): r.granted for r in RolePermission.objects.all()}
 
     def seed_for_role(self, role_name: str) -> None:
-        """New roles start with nothing granted — an admin opts them into features
-        from the matrix rather than a new role silently inheriting access."""
+        """New roles start ungranted; access is opted in via the matrix."""
         RolePermission.objects.bulk_create(
             RolePermission(role=role_name, permission=permission, granted=False) for permission in Permission
         )
@@ -47,3 +50,6 @@ class RolePermissionRepository(BaseRepository[RolePermission]):
 
     def delete_for_role(self, role_name: str) -> None:
         RolePermission.objects.filter(role=role_name).delete()
+
+    def rename_role(self, old_name: str, new_name: str) -> None:
+        RolePermission.objects.filter(role=old_name).update(role=new_name)

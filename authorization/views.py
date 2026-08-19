@@ -10,10 +10,8 @@ from authorization.services import PermissionMatrixService, RoleService
 
 
 class RoleListCreateView(generics.ListCreateAPIView):
-    """The list of roles. Readable by any authenticated user — the Add/Edit User
-    form needs it to populate its role dropdown — but only Admins can create
-    new ones, restricted directly by role so the Roles & Permissions matrix
-    itself can never lock that ability away."""
+    """Role list/create. Create is Admin-only, gated directly by role so the
+    permissions matrix can never lock out the ability to grant access."""
 
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
@@ -27,11 +25,17 @@ class RoleListCreateView(generics.ListCreateAPIView):
         serializer.instance = RoleService().create_role(serializer.validated_data["name"])
 
 
-class RoleDetailView(generics.DestroyAPIView):
+class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Rename/delete a role. Admin-only; built-in roles are protected in
+    RoleSerializer/RoleService, shared with the create path."""
+
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
     lookup_field = "name"
     permission_classes = [HasRole(ADMIN_ROLE_NAME)]
+
+    def perform_update(self, serializer):
+        serializer.instance = RoleService().rename_role(serializer.instance, serializer.validated_data["name"])
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
         role = self.get_object()
@@ -40,9 +44,8 @@ class RoleDetailView(generics.DestroyAPIView):
 
 
 class RolePermissionsView(APIView):
-    """The Roles & Permissions matrix: every (role, permission) pair and whether
-    it's granted. Restricted to Admins directly by role — not by the matrix
-    itself — so no combination of edits here can ever lock every admin out."""
+    """Permission matrix read/patch. Admin-only by role, not by the matrix
+    itself, so no edit here can lock every admin out."""
 
     permission_classes = [HasRole(ADMIN_ROLE_NAME)]
 

@@ -15,17 +15,15 @@ class User(AbstractBaseUser):
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
 
-    # Account-lockout policy state (see register_failed_login/register_successful_login).
+    # Lockout policy state (see register_failed_login/register_successful_login).
     failed_login_attempts = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
 
-    # Idle-session-timeout policy state, refreshed on every authenticated request
-    # by authentication.backends.IdleTimeoutJWTAuthentication.
+    # Idle-timeout state, refreshed per request by IdleTimeoutJWTAuthentication.
     last_activity = models.DateTimeField(null=True, blank=True)
 
-    # Bumped by set_password() below; any JWT issued before this moment is treated
-    # as stale (see is_password_stale) so a password change forces a fresh login
-    # everywhere, not just on the device that changed it.
+    # Bumped by set_password(); JWTs issued before this are stale (see
+    # is_password_stale), forcing re-login everywhere on password change.
     password_changed_at = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()
@@ -41,8 +39,7 @@ class User(AbstractBaseUser):
         self.password_changed_at = timezone.now()
 
     def is_password_stale(self, token_issued_at: int) -> bool:
-        """True if a JWT with this `iat` (unix timestamp) claim predates the last
-        password change and should no longer be honored."""
+        """True if a JWT with this `iat` claim predates the last password change."""
         issued = datetime.fromtimestamp(token_issued_at, tz=dt_timezone.utc)
         return issued < self.password_changed_at
 
@@ -50,8 +47,7 @@ class User(AbstractBaseUser):
         return bool(self.locked_until and timezone.now() < self.locked_until)
 
     def register_failed_login(self) -> None:
-        """Records a failed login attempt, locking the account once
-        SECURITY_MAX_LOGIN_ATTEMPTS is reached."""
+        """Records a failed attempt; locks the account at SECURITY_MAX_LOGIN_ATTEMPTS."""
         self.failed_login_attempts += 1
         if self.failed_login_attempts >= settings.SECURITY_MAX_LOGIN_ATTEMPTS:
             self.locked_until = timezone.now() + timedelta(
@@ -60,9 +56,7 @@ class User(AbstractBaseUser):
         self.save(update_fields=["failed_login_attempts", "locked_until"])
 
     def register_successful_login(self) -> None:
-        """Clears any lockout state and resets the idle-session clock after a
-        successful authentication — otherwise a stale last_activity from a
-        previous, timed-out session would fail the very next request."""
+        """Clears lockout state and resets the idle-session clock on success."""
         self.failed_login_attempts = 0
         self.locked_until = None
         self.last_activity = timezone.now()

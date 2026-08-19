@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from authorization.models import ADMIN_ROLE_NAME, Permission, Role
@@ -5,12 +6,10 @@ from authorization.repositories import RolePermissionRepository, RoleRepository
 
 
 class RoleService:
-    """Owns the business rules around creating/deleting roles.
+    """Business rules for creating, renaming, and deleting roles.
 
-    delete_role's "is this role still in use" check is the one place
-    `authorization` reaches into `users` — see the cross-module dependency
-    note in the architecture plan. If `authorization` is ever split out into
-    its own service, this is the seam to replace with an API/event call.
+    rename_role and delete_role are the two places this module reaches into
+    `users` — see the dependency map in CONTRIBUTING.md.
     """
 
     def __init__(self, role_repo: RoleRepository | None = None, role_permission_repo: RolePermissionRepository | None = None):
@@ -20,6 +19,24 @@ class RoleService:
     def create_role(self, name: str) -> Role:
         role = self.roles.create(name=name)
         self.role_permissions.seed_for_role(role.name)
+        return role
+
+    def rename_role(self, role: Role, new_name: str) -> Role:
+        """Cascades the rename to every RolePermission row and user referencing
+        this role by name."""
+        from users.repositories import UserRepository
+
+        old_name = role.name
+        if new_name == old_name:
+            return role
+        if role.is_builtin:
+            raise ValidationError({"error": "Built-in roles can't be renamed."})
+
+        with transaction.atomic():
+            role.name = new_name
+            self.roles.save(role)
+            self.role_permissions.rename_role(old_name, new_name)
+            UserRepository().reassign_role(old_name, new_name)
         return role
 
     def delete_role(self, role: Role) -> None:
@@ -34,9 +51,8 @@ class RoleService:
 
 
 class PermissionMatrixService:
-    """The Roles & Permissions matrix: every (role, permission) pair and whether
-    it's granted. Admins always show as granted for everything, regardless of
-    what's stored — RolePermission only ever governs non-admin roles."""
+    """Role/permission grant matrix. Admins always show as fully granted;
+    RolePermission rows only govern non-admin roles."""
 
     def __init__(self, role_repo: RoleRepository | None = None, role_permission_repo: RolePermissionRepository | None = None):
         self.roles = role_repo or RoleRepository()

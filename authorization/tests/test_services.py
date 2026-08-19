@@ -35,6 +35,36 @@ class RoleServiceTests(TestCase):
         self.assertFalse(Role.objects.filter(name="Auditors").exists())
         self.assertFalse(RolePermission.objects.filter(role="Auditors").exists())
 
+    def test_rename_role_cascades_to_permissions_and_users(self):
+        role = RoleService().create_role("Auditors")
+        RolePermission.objects.filter(role="Auditors", permission="users.view").update(granted=True)
+        user = User.objects.create_user(email="x@example.com", password="Str0ngPassw0rd!", name="X", role="Auditors")
+
+        RoleService().rename_role(role, "Inspectors")
+
+        self.assertEqual(role.name, "Inspectors")
+        self.assertFalse(Role.objects.filter(name="Auditors").exists())
+        self.assertTrue(Role.objects.filter(name="Inspectors").exists())
+        self.assertFalse(RolePermission.objects.filter(role="Auditors").exists())
+        self.assertTrue(
+            RolePermission.objects.filter(role="Inspectors", permission="users.view", granted=True).exists()
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.role, "Inspectors")
+
+    def test_rename_role_is_a_noop_for_the_same_name(self):
+        role = RoleService().create_role("Auditors")
+
+        RoleService().rename_role(role, "Auditors")
+
+        self.assertTrue(Role.objects.filter(name="Auditors").exists())
+
+    def test_rename_role_rejects_builtin(self):
+        role = Role.objects.get(name=ADMIN_ROLE_NAME)
+
+        with self.assertRaises(ValidationError):
+            RoleService().rename_role(role, "Overlords")
+
 
 class PermissionMatrixServiceTests(TestCase):
     def test_admin_always_shows_as_granted(self):

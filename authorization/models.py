@@ -1,16 +1,14 @@
 from django.db import models
 
-# The one role that always bypasses the permissions matrix entirely (see
-# authorization.permissions.HasPermission) — kept as a plain name, not a row anyone
-# can rename or delete, so there's no way to end up with zero working admins.
+# Bypasses the permissions matrix entirely (see authorization.permissions.HasPermission).
+# A fixed name, not a row, so it can never be renamed/deleted into zero working admins.
 ADMIN_ROLE_NAME = "Admins"
 STAFF_ROLE_NAME = "Staff"
 
 
 class Role(models.Model):
-    """A named group users can belong to. Admins and Staff are seeded as
-    built-in and can't be renamed or deleted; anyone else can add more roles
-    from the Roles & Permissions screen and configure what each can do."""
+    """A named group users can belong to. Admins/Staff are seeded as built-in
+    and can't be renamed or deleted; any other role is admin-managed."""
 
     name = models.CharField(max_length=40, unique=True)
     is_builtin = models.BooleanField(default=False)
@@ -24,9 +22,9 @@ class Role(models.Model):
 
 
 class Permission(models.TextChoices):
-    """Catalog of grantable actions. Admins implicitly hold every permission
-    (see authorization.permissions.HasPermission) — RolePermission rows only govern
-    what Staff can do."""
+    """Catalog of grantable actions. Admins implicitly hold all of them (see
+    authorization.permissions.HasPermission); RolePermission only governs
+    non-admin roles."""
 
     USERS_VIEW = "users.view", "View users"
     USERS_MANAGE = "users.manage", "Create & edit users"
@@ -43,10 +41,8 @@ class Permission(models.TextChoices):
 
 
 class RolePermission(models.Model):
-    """Whether `permission` is granted to the role named `role`. Never consulted
-    for Admins — Admins always pass every permission check (see
-    authorization.permissions.HasPermission), so there's no row that could
-    accidentally lock every admin out at once."""
+    """Whether `permission` is granted to `role`. Never consulted for Admins —
+    they always pass (see authorization.permissions.HasPermission)."""
 
     role = models.CharField(max_length=40)
     permission = models.CharField(max_length=40, choices=Permission.choices)
