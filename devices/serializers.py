@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from devices.models import NetworkDevice
+from devices.models import DeviceActivity, NetworkDevice
 from devices.services import DeviceService
 
 MAC_PATTERN = r"^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$"
@@ -15,6 +15,15 @@ class NetworkDeviceSerializer(serializers.ModelSerializer):
             "mac", "ip", "hostname", "os_family", "os_name", "os_version", "device_type",
             "confidence", "detection_method", "signals", "first_seen_at", "last_seen_at", "last_detected_at",
         ]
+        read_only_fields = fields
+
+
+class DeviceActivitySerializer(serializers.ModelSerializer):
+    """Read shape for one device's activity feed (GET /devices/<mac>/activity/)."""
+
+    class Meta:
+        model = DeviceActivity
+        fields = ["id", "domain", "source", "timestamp", "flagged"]
         read_only_fields = fields
 
 

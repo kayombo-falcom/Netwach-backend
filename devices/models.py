@@ -37,9 +37,10 @@ class NetworkDevice(models.Model):
 
 
 class DeviceActivity(models.Model):
-    """A domain a device was seen contacting. Laid out ahead of the
-    traffic/policy features that will read and write it — no endpoint uses
-    this yet."""
+    """A domain a device was seen contacting. Read via GET
+    /devices/<mac>/activity/ (the device drawer's "Recent activity" list);
+    nothing writes to it yet — that needs real DNS/traffic-capture
+    infrastructure, a separate feature from this read path."""
 
     domain = models.CharField(max_length=255)
     source = models.CharField(max_length=20)

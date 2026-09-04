@@ -1,8 +1,9 @@
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from authorization.models import ADMIN_ROLE_NAME
-from devices.models import NetworkDevice
+from devices.models import DeviceActivity, NetworkDevice
 from users.models import User
 
 
@@ -101,5 +102,44 @@ class DeviceApiTests(APITestCase):
             {"mac": "aa:bb:cc:dd:ee:ff", "ip": "192.168.1.10", "os_family": "Linux", "os_name": "Linux", "confidence": 80},
             format="json",
         )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_activity_returns_most_recent_first(self):
+        device = NetworkDevice.objects.create(mac="aa:bb:cc:dd:ee:ff", ip="192.168.1.10", signals=[])
+        older = DeviceActivity.objects.create(
+            device=device, domain="old.example.com", source="dns", flagged=False,
+            timestamp=timezone.now() - timezone.timedelta(minutes=5),
+        )
+        newer = DeviceActivity.objects.create(
+            device=device, domain="new.example.com", source="dns", flagged=True, timestamp=timezone.now(),
+        )
+
+        response = self.client.get("/api/v1/devices/aa:bb:cc:dd:ee:ff/activity/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([row["id"] for row in response.data], [newer.id, older.id])
+
+    def test_list_activity_is_scoped_to_the_device(self):
+        device = NetworkDevice.objects.create(mac="aa:bb:cc:dd:ee:ff", ip="192.168.1.10", signals=[])
+        other = NetworkDevice.objects.create(mac="11:22:33:44:55:66", ip="192.168.1.11", signals=[])
+        DeviceActivity.objects.create(device=other, domain="other.example.com", source="dns", flagged=False, timestamp=timezone.now())
+
+        response = self.client.get("/api/v1/devices/aa:bb:cc:dd:ee:ff/activity/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_list_activity_404s_for_unknown_mac(self):
+        response = self.client.get("/api/v1/devices/aa:bb:cc:dd:ee:ff/activity/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_list_activity_requires_devices_view_permission(self):
+        NetworkDevice.objects.create(mac="aa:bb:cc:dd:ee:ff", ip="192.168.1.10", signals=[])
+        staff = User.objects.create_user(email="staff@example.com", password="Str0ngPassw0rd!", name="Staff", role="Staff")
+        self.client.force_authenticate(staff)
+
+        response = self.client.get("/api/v1/devices/aa:bb:cc:dd:ee:ff/activity/")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
