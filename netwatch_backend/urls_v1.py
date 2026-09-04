@@ -5,4 +5,6 @@ urlpatterns = [
     path('auth/', include('authentication.urls')),
     path('users/', include('users.urls')),
     path('roles/', include('authorization.urls')),
+    path('devices/', include('devices.urls')),
+    path('network/', include('network.urls')),
 ]

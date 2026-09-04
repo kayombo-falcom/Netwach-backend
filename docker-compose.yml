@@ -16,13 +16,23 @@ services:
     build: .
     container_name: netwatch-backend
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
+    # Host networking so the network app sees the host's real interfaces/ARP
+    # table/Wi-Fi radio instead of the isolated container bridge — required
+    # for LAN scanning and OS fingerprinting to see the actual LAN, not the
+    # Docker bridge subnet. This also means `ports:` below is inert (Docker
+    # ignores published ports under host networking) and service-name DNS
+    # (`db`) doesn't apply to this container — see DB_HOST override.
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    command: python manage.py runserver 0.0.0.0:8001
     volumes:
       - .:/app
-    ports:
-      - "8001:8000"
     env_file:
       - .env
+    environment:
+      - DB_HOST=localhost
     depends_on:
       - db
 

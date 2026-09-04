@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     'authorization',
     'users',
     'authentication',
+    'devices',
+    'network',
 ]
 
 MIDDLEWARE = [
