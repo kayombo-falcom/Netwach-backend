@@ -41,3 +41,8 @@ class DeviceActivityRepository(BaseRepository[DeviceActivity]):
     def list_for_device(self, device_id) -> "QuerySet[DeviceActivity]":
         # Matches the (device, -timestamp) index in DeviceActivity.Meta.
         return DeviceActivity.objects.filter(device_id=device_id).order_by("-timestamp")
+
+    def create(self, *, device_id, domain, source, timestamp, flagged) -> DeviceActivity:
+        return DeviceActivity.objects.create(
+            device_id=device_id, domain=domain, source=source, timestamp=timestamp, flagged=flagged,
+        )

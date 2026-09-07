@@ -4,6 +4,11 @@ NetBIOS, banners, mDNS, SSDP, open ports, TTL, MAC vendor — and fuses them
 into one verdict. No single signal decides alone. `mac`, when known, only
 feeds the OUI vendor signal — everything else here is IP-addressed.
 
+nmap also runs -sV alongside -O, so whatever it finds on the device's open
+ports (service name, product, version) rides along as `services` on the
+result — it isn't a signal in the OS fusion, just extra detail about the
+same host.
+
 Every real result comes from remote network fingerprinting, never from
 asking the device itself — "estimated" always, until a self-reporting agent
 exists to produce a "verified" one instead.
@@ -74,6 +79,40 @@ def _host_is_up(xml: str) -> bool:
     return bool(re.search(r'<status\s+state="up"', xml, re.I))
 
 
+def _parse_open_services(xml: str) -> list[dict]:
+    """Every open port -sV fingerprinted, with whatever service/product/
+    version it identified. Closed/filtered ports are skipped — nmap already
+    summarizes those as a count, not worth listing individually."""
+    services = []
+    for port_match in re.finditer(r"<port\s+([^>]*)>([\s\S]*?)</port>", xml):
+        port_attrs = _parse_attributes(port_match.group(1))
+        body = port_match.group(2)
+
+        state_match = re.search(r"<state\s+([^>]*)/?>", body)
+        state_attrs = _parse_attributes(state_match.group(1)) if state_match else {}
+        if state_attrs.get("state") != "open":
+            continue
+
+        try:
+            port = int(port_attrs.get("portid", ""))
+        except ValueError:
+            continue
+
+        service_match = re.search(r"<service\s+([^>]*)/?>", body)
+        service_attrs = _parse_attributes(service_match.group(1)) if service_match else {}
+
+        services.append({
+            "port": port,
+            "protocol": port_attrs.get("protocol"),
+            "service": service_attrs.get("name"),
+            "product": service_attrs.get("product"),
+            "version": service_attrs.get("version"),
+            "extraInfo": service_attrs.get("extrainfo"),
+        })
+    services.sort(key=lambda s: s["port"])
+    return services
+
+
 def _is_nmap_available() -> bool:
     return run_ok("nmap", ["--version"]) is not None
 
@@ -112,15 +151,17 @@ def _run_nmap(ip: str) -> dict:
     """-Pn skips nmap's own ping (we already checked). --max-os-tries 2 /
     --osscan-guess let nmap try a bit harder on an ambiguous fingerprint —
     safe now that nmap is just one vote, not the final answer. --top-ports
-    100 / -T4 keep it fast for a LAN scan. --host-timeout lets nmap give up
-    cleanly instead of us killing it. Needs CAP_NET_RAW/CAP_NET_ADMIN
+    100 / -T4 keep it fast for a LAN scan. -sV fingerprints whatever's
+    listening on those same 100 ports — no extra ports scanned, just deeper
+    inspection of the ones already in scope. --host-timeout lets nmap give
+    up cleanly instead of us killing it. Needs CAP_NET_RAW/CAP_NET_ADMIN
     (granted in docker-compose.yml) for -O's raw-packet fingerprinting."""
     if not _is_nmap_available():
         return {"status": "unavailable"}
 
     result = run_result(
         "nmap",
-        ["-O", "-Pn", "-T4", "--top-ports", "100", "--host-timeout", "20s",
+        ["-O", "-sV", "-Pn", "-T4", "--top-ports", "100", "--host-timeout", "20s",
          "--max-os-tries", "2", "--osscan-guess", "-oX", "-", ip],
         timeout=NMAP_TIMEOUT_S,
     )
@@ -211,8 +252,10 @@ def detect_os(ip: str, mac: str | None = None) -> dict:
         signals.append(oui)
 
     nmap_match = None
+    services: list[dict] = []
     if nmap_run["status"] == "ok" and _host_is_up(nmap_run["xml"]):
         nmap_match = _parse_best_os_match(nmap_run["xml"])
+        services = _parse_open_services(nmap_run["xml"])
         if nmap_match:
             family = _normalize_family(nmap_match["osFamily"] or nmap_match["name"])
             if family:
@@ -230,6 +273,7 @@ def detect_os(ip: str, mac: str | None = None) -> dict:
             "deviceType": nmap_match["deviceType"] if nmap_agrees else None,
             "confidence": fused["confidence"],
             "signals": _to_signal_details(signals, fused["family"]),
+            "services": services,
         }
 
     # Only fail outright if nothing came back at all — a device with no nmap
@@ -243,4 +287,5 @@ def detect_os(ip: str, mac: str | None = None) -> dict:
         "method": "estimated",
         "confidence": nmap_match["accuracy"] if nmap_match else None,
         "signals": _to_signal_details(signals),
+        "services": services,
     }

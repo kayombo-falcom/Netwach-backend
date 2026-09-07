@@ -1,4 +1,6 @@
-from devices.models import NetworkDevice
+from django.utils import timezone
+
+from devices.models import DeviceActivity, NetworkDevice
 from devices.repositories import DeviceActivityRepository, NetworkDeviceRepository
 
 
@@ -22,3 +24,14 @@ class DeviceService:
 
     def record_detection(self, **kwargs) -> NetworkDevice:
         return self.devices.upsert_detection(**kwargs)
+
+    def record_dns_query(self, *, mac: str, domain: str) -> DeviceActivity | None:
+        """Logs one DNS query against whichever device already has a
+        NetworkDevice row for this MAC — silently a no-op otherwise, since
+        nothing but OS detection creates that row yet."""
+        device = self.devices.get_by_mac(mac.lower())
+        if device is None:
+            return None
+        return self.activity.create(
+            device_id=device.id, domain=domain, source="dns", timestamp=timezone.now(), flagged=False,
+        )

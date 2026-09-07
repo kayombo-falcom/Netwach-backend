@@ -1,6 +1,11 @@
+import socket
+import struct
+
 from django.test import SimpleTestCase
 
-from network.dns_wire import TYPE_A, TYPE_PTR, TYPE_TXT, build_query, parse_message
+from network.arp_mitm import build_arp_reply
+from network.dns_capture import _parse_dns_query_frame
+from network.dns_wire import TYPE_A, TYPE_PTR, TYPE_TXT, build_query, parse_message, parse_question
 from network.ip_utils import cidr_to_mask, ip_to_long, is_in_same_subnet, long_to_ip, mask_to_cidr
 from network.isp_brands import brand_name_for_isp
 from network.os_fingerprint import _fuse_signals, _normalize_family, _parse_best_os_match, _to_signal_details
@@ -54,6 +59,81 @@ class DnsWireTests(SimpleTestCase):
         rr = pointer_name + struct.pack(">HHIH", TYPE_PTR, 1, 120, len(question_name)) + question_name
         message = parse_message(header + question + rr)
         self.assertEqual(message["answers"][0]["name"], "a.local")
+
+    def test_parse_question_extracts_name_and_type(self):
+        header = struct.pack(">HHHHHH", 1, 0x0100, 1, 0, 0, 0)
+        question = b"\x07example\x03com\x00" + struct.pack(">HH", TYPE_A, 1)
+        self.assertEqual(parse_question(header + question), ("example.com", TYPE_A))
+
+    def test_parse_question_returns_none_for_truncated_buffer(self):
+        self.assertIsNone(parse_question(b"\x00" * 5))
+
+
+class DnsCaptureTests(SimpleTestCase):
+    SRC_MAC = bytes.fromhex("aabbccddeeff")
+    DST_MAC = bytes.fromhex("112233445566")
+
+    def _build_frame(self, *, dst_port=53, protocol=17, dns_payload=b""):
+        eth = self.DST_MAC + self.SRC_MAC + struct.pack(">H", 0x0800)
+        ip_header = (
+            bytes([0x45, 0, 0, 0, 0, 0, 0, 0, 64, protocol, 0, 0])
+            + socket.inet_aton("10.0.0.5") + socket.inet_aton("8.8.8.8")
+        )
+        udp_header = struct.pack(">HHHH", 12345, dst_port, 8 + len(dns_payload), 0)
+        return eth + ip_header + udp_header + dns_payload
+
+    def _dns_query_payload(self, domain="example.com", qtype=TYPE_A):
+        header = struct.pack(">HHHHHH", 1, 0x0100, 1, 0, 0, 0)
+        labels = b"".join(bytes([len(part)]) + part.encode() for part in domain.split("."))
+        return header + labels + b"\x00" + struct.pack(">HH", qtype, 1)
+
+    def test_full_frame_parses_mac_and_domain(self):
+        frame = self._build_frame(dns_payload=self._dns_query_payload("example.com"))
+        self.assertEqual(_parse_dns_query_frame(frame), ("aa:bb:cc:dd:ee:ff", "example.com"))
+
+    def test_non_dns_port_is_ignored(self):
+        frame = self._build_frame(dst_port=80, dns_payload=self._dns_query_payload())
+        self.assertIsNone(_parse_dns_query_frame(frame))
+
+    def test_non_udp_protocol_is_ignored(self):
+        frame = self._build_frame(protocol=6, dns_payload=self._dns_query_payload())  # TCP
+        self.assertIsNone(_parse_dns_query_frame(frame))
+
+    def test_truncated_frames_do_not_raise(self):
+        for length in (0, 5, 14, 20, 34, 41):
+            with self.subTest(length=length):
+                self.assertIsNone(_parse_dns_query_frame(b"\x00" * length))
+
+
+class ArpMitmTests(SimpleTestCase):
+    THIS_MAC = bytes.fromhex("aabbccddeeff")
+    VICTIM_MAC = bytes.fromhex("112233445566")
+
+    def test_build_arp_reply_byte_layout(self):
+        frame = build_arp_reply(
+            src_mac=self.THIS_MAC, dst_mac=self.VICTIM_MAC,
+            sender_ip="192.168.1.1", sender_mac=self.THIS_MAC,
+            target_ip="192.168.1.50", target_mac=self.VICTIM_MAC,
+        )
+        # Ethernet: dst(6) + src(6) + ethertype(2)
+        self.assertEqual(frame[0:6], self.VICTIM_MAC)
+        self.assertEqual(frame[6:12], self.THIS_MAC)
+        self.assertEqual(frame[12:14], struct.pack(">H", 0x0806))
+        # ARP: htype, ptype, hlen, plen, opcode
+        self.assertEqual(struct.unpack(">HHBBH", frame[14:22]), (1, 0x0800, 6, 4, 2))
+        # sender mac/ip, target mac/ip
+        self.assertEqual(frame[22:28], self.THIS_MAC)
+        self.assertEqual(frame[28:32], socket.inet_aton("192.168.1.1"))
+        self.assertEqual(frame[32:38], self.VICTIM_MAC)
+        self.assertEqual(frame[38:42], socket.inet_aton("192.168.1.50"))
+
+    def test_build_arp_reply_is_42_bytes(self):
+        frame = build_arp_reply(
+            src_mac=self.THIS_MAC, dst_mac=self.VICTIM_MAC,
+            sender_ip="192.168.1.1", sender_mac=self.THIS_MAC,
+            target_ip="192.168.1.50", target_mac=self.VICTIM_MAC,
+        )
+        self.assertEqual(len(frame), 42)
 
 
 class IspBrandsTests(SimpleTestCase):

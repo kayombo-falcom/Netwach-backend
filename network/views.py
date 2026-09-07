@@ -70,11 +70,15 @@ class HostnameLookupView(SafeGetView):
 
 class OsDetectView(SafeGetView):
     """Runs a live nmap-backed OS detection against the requested host, and
-    best-effort persists a "detected" result via the devices app so the
-    device list/history survives across scans. A storage hiccup here must
-    never fail the detection result the caller is looking at right now."""
+    best-effort persists the result via the devices app so the device
+    list/history survives across scans — "detected" and "unknown" both
+    persist, since either means the device answered and is worth tracking;
+    only "unreachable"/"out_of_scope"/"engine_unavailable" mean no real
+    attempt was made. A storage hiccup here must never fail the detection
+    result the caller is looking at right now."""
 
     error_message = "Unable to run OS detection"
+    PERSISTABLE_STATUSES = ("detected", "unknown")
 
     def perform(self, request: Request):
         ip = _require_ip_param(request)
@@ -83,7 +87,7 @@ class OsDetectView(SafeGetView):
 
         mac = request.query_params.get("mac")
         result = detect_os(ip, mac)
-        if result.get("status") == "detected" and mac:
+        if result.get("status") in self.PERSISTABLE_STATUSES and mac:
             self._persist_detection(mac, ip, result)
         return result
 
@@ -91,9 +95,9 @@ class OsDetectView(SafeGetView):
     def _persist_detection(mac: str, ip: str, result: dict) -> None:
         try:
             DeviceService().record_detection(
-                mac=mac.lower(), ip=ip, os_family=result["osFamily"], os_name=result["osName"],
+                mac=mac.lower(), ip=ip, os_family=result.get("osFamily"), os_name=result.get("osName"),
                 os_version=result.get("osVersion"), device_type=result.get("deviceType"),
-                confidence=result["confidence"], signals=result["signals"],
+                confidence=result.get("confidence"), signals=result.get("signals", []),
             )
         except Exception:
             pass

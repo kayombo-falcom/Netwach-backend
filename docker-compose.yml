@@ -36,5 +36,54 @@ services:
     depends_on:
       - db
 
+  dns-capture:
+    build: .
+    container_name: netwatch-dns-capture
+    restart: unless-stopped
+    # Same host networking + raw-socket capabilities as `web`, but running
+    # its own long-lived process instead — a continuous packet capture has
+    # to be a single dedicated process, not code inside a request-serving
+    # worker (multiple workers would each capture and double-write).
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    command: python manage.py capture_dns
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=localhost
+    depends_on:
+      - db
+
+  arp-mitm:
+    build: .
+    container_name: netwatch-arp-mitm
+    # Not unless-stopped: when ARP_MITM_ENABLED isn't set, the command exits
+    # 0 immediately by design (see network/arp_mitm.py) — unless-stopped
+    # would restart-loop forever in that (the default) state. on-failure
+    # only restarts on a real crash (non-zero exit), which is what we still
+    # want once this is actually enabled and running the poisoning loop.
+    restart: on-failure
+    # Same host networking + raw-socket capabilities as `dns-capture`. Only
+    # actually poisons anything if ARP_MITM_ENABLED=true in .env — off by
+    # default because this can disrupt every device's connectivity on the
+    # LAN if misconfigured.
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    command: python manage.py arp_mitm
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=localhost
+    depends_on:
+      - db
+
 volumes:
   postgres_data:

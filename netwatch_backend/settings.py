@@ -97,6 +97,19 @@ SECURITY_MAX_LOGIN_ATTEMPTS = int(os.environ.get('SECURITY_MAX_LOGIN_ATTEMPTS', 
 SECURITY_LOCKOUT_DURATION_MINUTES = int(os.environ.get('SECURITY_LOCKOUT_DURATION_MINUTES', 15))
 SECURITY_IDLE_SESSION_TIMEOUT_MINUTES = int(os.environ.get('SECURITY_IDLE_SESSION_TIMEOUT_MINUTES', 30))
 
+# Interface the DNS capture command binds to (see network/dns_capture.py).
+# Unset by default: falls back to whichever interface carries the default
+# route, which is only correct if that happens to be the LAN-facing side —
+# override here if this host's WAN/LAN interfaces differ.
+DNS_CAPTURE_IFACE = os.environ.get('DNS_CAPTURE_IFACE') or None
+
+# ARP-spoofing redirection (see network/arp_mitm.py) — off by default. Must
+# be explicitly enabled: it can disrupt every device's connectivity on the
+# LAN if misconfigured. ARP_MITM_INTERVAL_SECONDS is how often each known
+# device is re-poisoned to keep the spoof active against ARP cache expiry.
+ARP_MITM_ENABLED = os.environ.get('ARP_MITM_ENABLED', 'false').lower() == 'true'
+ARP_MITM_INTERVAL_SECONDS = float(os.environ.get('ARP_MITM_INTERVAL_SECONDS', 2))
+
 ROOT_URLCONF = 'netwatch_backend.urls'
 
 TEMPLATES = [

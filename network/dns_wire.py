@@ -58,6 +58,24 @@ def build_query(questions: list[tuple[str, int]], transaction_id: int = 0) -> by
     return header + body
 
 
+def parse_question(buf: bytes) -> tuple[str, int] | None:
+    """The first question's (name, qtype) from a DNS message — for reading a
+    client's outbound query, unlike parse_message() below which reads a
+    server's answers. None if the buffer is too short or truncated mid-name."""
+    if len(buf) < 12:
+        return None
+
+    _tid, _flags, qdcount, _ancount, _nscount, _arcount = struct.unpack(">HHHHHH", buf[:12])
+    if qdcount < 1:
+        return None
+
+    name, offset = decode_name(buf, 12)
+    if offset + 4 > len(buf):
+        return None
+    qtype, _qclass = struct.unpack(">HH", buf[offset:offset + 4])
+    return name, qtype
+
+
 def parse_message(buf: bytes) -> dict:
     """Returns {"answers": [...], "additionals": [...]} — each record a dict
     with name/type/data (rdata decoded for A/PTR/TXT, raw bytes otherwise)."""
