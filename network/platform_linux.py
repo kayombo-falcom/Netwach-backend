@@ -1,13 +1,18 @@
 """Live Wi-Fi/Ethernet status of whichever interface carries the default
-route, read straight from iproute2's JSON output, `iw`, and sysfs — this app
-only targets Linux (see AGENTS.md: no netsh/PowerShell equivalent exists
-inside the container this runs in)."""
+route, read straight from iproute2's JSON output, `iw`, and sysfs. This runs
+inside a Linux container regardless of host OS (see AGENTS.md), so this code
+needs no Windows-specific equivalent — only the container's network_mode
+needs real host-network visibility, which is a Docker/WSL2 config concern,
+not a code one."""
 
+import logging
 import os
 import re
 
 from network.ip_utils import cidr_to_mask
 from network.shell import normalize_mac, run, run_json
+
+logger = logging.getLogger("network")
 
 WIFI_GENERATION = {
     "802.11be": "Wi-Fi 7",
@@ -205,6 +210,10 @@ def _build_ethernet_connection(dev, route, addr):
 def get_current_connection() -> dict:
     route = _get_default_route()
     if not route:
+        logger.warning(
+            "No default route visible inside the container — if this is a Windows host, "
+            "check Docker Desktop's host-networking setting and WSL2 mirrored networking mode."
+        )
         return dict(EMPTY_CONNECTION)
 
     addr = _get_addr_info(route["dev"])
