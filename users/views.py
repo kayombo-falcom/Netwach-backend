@@ -15,7 +15,7 @@ class UserListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == "POST":
             return [HasPermission(Permission.USERS_MANAGE)()]
-        return super().get_permissions()
+        return [HasPermission(Permission.USERS_VIEW)()]
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
@@ -27,4 +27,4 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     def get_permissions(self):
         if self.request.method in ("PUT", "PATCH"):
             return [HasPermission(Permission.USERS_MANAGE)()]
-        return super().get_permissions()
+        return [HasPermission(Permission.USERS_VIEW)()]

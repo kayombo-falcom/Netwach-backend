@@ -12,6 +12,10 @@ class RefreshRequestSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 
+class LogoutRequestSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
 class ChangePasswordRequestSerializer(serializers.Serializer):
     """Field-shape only — verifying the current password and validating the new one live in AuthenticationService."""
 

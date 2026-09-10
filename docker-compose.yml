@@ -10,7 +10,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Loopback-only: the host-networked app containers reach this via
+      # DB_HOST=localhost anyway, so nothing on the LAN needs this port.
+      - "127.0.0.1:5432:5432"
 
   web:
     build: .
@@ -26,7 +28,10 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    command: python manage.py runserver 0.0.0.0:8000
+    # Loopback-only: only this host's own Next.js process needs to reach the
+    # API. The network app still sends/receives raw LAN traffic fine — that's
+    # independent of which address the HTTP server itself listens on.
+    command: python manage.py runserver 127.0.0.1:8000
     volumes:
       - .:/app
     env_file:

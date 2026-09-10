@@ -1,7 +1,11 @@
+import ipaddress
+
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from authorization.models import Permission
+from authorization.permissions import HasPermission
 from devices.services import DeviceService
 from network.hostname_resolve import lookup_device_hostname
 from network.meta import get_network_meta
@@ -15,6 +19,7 @@ class SafeGetView(APIView):
     """Runs `perform(request)` and turns any exception into a 500, since these are live probes that can fail for reasons outside our control."""
 
     error_message = "Request failed"
+    permission_classes = [HasPermission(Permission.DEVICES_VIEW)]
 
     def get(self, request: Request) -> Response:
         try:
@@ -28,9 +33,20 @@ class SafeGetView(APIView):
 
 
 def _require_ip_param(request: Request) -> str | Response:
-    """The "ip" query param, or a 400 Response if it's missing."""
+    """The "ip" query param as a validated address, or a 400 Response if it's missing or malformed.
+
+    Rejecting anything that isn't a real IP address before it reaches nmap/ping
+    matters here: those run as list-args subprocess calls (no shell), but a
+    value starting with "-" or containing multiple targets would still be
+    parsed by nmap itself as flags or a target list rather than one host."""
     ip = request.query_params.get("ip")
-    return ip if ip else Response({"error": 'Missing required "ip" query parameter'}, status=400)
+    if not ip:
+        return Response({"error": 'Missing required "ip" query parameter'}, status=400)
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return Response({"error": 'Invalid "ip" query parameter'}, status=400)
+    return ip
 
 
 class CurrentConnectionView(SafeGetView):

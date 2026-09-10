@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from authentication.serializers import (
     ChangePasswordRequestSerializer,
     LoginRequestSerializer,
+    LogoutRequestSerializer,
     RefreshRequestSerializer,
 )
 from authentication.services import AuthenticationService
@@ -21,6 +22,19 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         tokens = AuthenticationService().login(**serializer.validated_data)
         return Response(tokens)
+
+
+class LogoutView(APIView):
+    """Blacklists a refresh token so it can't be used again. AllowAny since an
+    already-expired access token shouldn't block a logout from completing."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = LogoutRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        AuthenticationService().logout(serializer.validated_data["refresh"])
+        return Response({"detail": "Logged out."})
 
 
 class RefreshView(APIView):

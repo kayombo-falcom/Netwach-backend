@@ -48,6 +48,13 @@ class AuthenticationService:
         token_serializer.is_valid(raise_exception=True)
         return token_serializer.validated_data
 
+    def logout(self, raw_refresh_token: str) -> None:
+        """Blacklists the refresh token server-side so it can't be used again, even before it naturally expires."""
+        try:
+            RefreshToken(raw_refresh_token).blacklist()
+        except Exception:
+            pass
+
     def change_password(self, user: User, current_password: str, new_password: str) -> User:
         if not user.check_password(current_password):
             raise ValidationError({"current_password": "Current password is incorrect."})
