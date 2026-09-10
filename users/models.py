@@ -22,8 +22,7 @@ class User(AbstractBaseUser):
     # Idle-timeout state, refreshed per request by IdleTimeoutJWTAuthentication.
     last_activity = models.DateTimeField(null=True, blank=True)
 
-    # Bumped by set_password(); JWTs issued before this are stale (see
-    # is_password_stale), forcing re-login everywhere on password change.
+    # Bumped by set_password(); JWTs issued before this are stale (see is_password_stale), forcing re-login everywhere on password change.
     password_changed_at = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()

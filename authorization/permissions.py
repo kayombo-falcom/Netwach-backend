@@ -5,10 +5,7 @@ from authorization.repositories import RolePermissionRepository
 
 
 def HasRole(*role_names):
-    """Builds a DRF permission class restricting a view to the given role names.
-
-    Usage: permission_classes = [HasRole(ADMIN_ROLE_NAME)]
-    """
+    """Builds a DRF permission class restricting a view to the given role names. Usage: permission_classes = [HasRole(ADMIN_ROLE_NAME)]"""
 
     class _HasRole(BasePermission):
         def has_permission(self, request, view):
@@ -18,13 +15,8 @@ def HasRole(*role_names):
 
 
 def HasPermission(permission):
-    """Builds a DRF permission class gating a view on the roles/permissions matrix.
-
-    Admins always pass, regardless of what's stored in RolePermission — that table
-    only ever governs non-admin roles, so it can never lock every admin out of the app.
-
-    Usage: permission_classes = [HasPermission(Permission.USERS_MANAGE)]
-    """
+    """Builds a DRF permission class gating a view on the roles/permissions matrix; Admins always pass regardless of RolePermission, so that table can never lock every admin out.
+    Usage: permission_classes = [HasPermission(Permission.USERS_MANAGE)]"""
 
     class _HasPermission(BasePermission):
         def has_permission(self, request, view):

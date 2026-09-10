@@ -4,8 +4,7 @@ from authorization.models import Permission, Role
 
 
 class RoleSerializer(serializers.ModelSerializer):
-    """Create/list/rename shape for roles. Built-in roles (Admins/Staff) are
-    seeded by migration and can't be renamed."""
+    """Create/list/rename shape for roles; built-in roles (Admins/Staff) are seeded by migration and can't be renamed."""
 
     class Meta:
         model = Role
@@ -22,8 +21,7 @@ class RoleSerializer(serializers.ModelSerializer):
 
 
 class RolePermissionSerializer(serializers.Serializer):
-    """One matrix edit: whether `permission` is granted to `role`. `role` is a
-    plain CharField, not a ChoiceField, since roles are created at runtime."""
+    """One matrix edit: whether `permission` is granted to `role`; `role` is a plain CharField since roles are created at runtime."""
 
     role = serializers.CharField()
     permission = serializers.ChoiceField(choices=Permission.choices)

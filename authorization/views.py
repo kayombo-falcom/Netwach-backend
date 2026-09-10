@@ -10,8 +10,7 @@ from authorization.services import PermissionMatrixService, RoleService
 
 
 class RoleListCreateView(generics.ListCreateAPIView):
-    """Role list/create. Create is Admin-only, gated directly by role so the
-    permissions matrix can never lock out the ability to grant access."""
+    """Role list/create; create is Admin-only, gated directly by role so the permissions matrix can't lock out the ability to grant access."""
 
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
@@ -26,8 +25,7 @@ class RoleListCreateView(generics.ListCreateAPIView):
 
 
 class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Rename/delete a role. Admin-only; built-in roles are protected in
-    RoleSerializer/RoleService, shared with the create path."""
+    """Rename/delete a role, Admin-only; built-in roles are protected in RoleSerializer/RoleService, shared with the create path."""
 
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
@@ -44,8 +42,7 @@ class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class RolePermissionsView(APIView):
-    """Permission matrix read/patch. Admin-only by role, not by the matrix
-    itself, so no edit here can lock every admin out."""
+    """Permission matrix read/patch; Admin-only by role, not by the matrix itself, so no edit here can lock every admin out."""
 
     permission_classes = [HasRole(ADMIN_ROLE_NAME)]
 

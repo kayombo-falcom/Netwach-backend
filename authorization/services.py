@@ -6,11 +6,7 @@ from authorization.repositories import RolePermissionRepository, RoleRepository
 
 
 class RoleService:
-    """Business rules for creating, renaming, and deleting roles.
-
-    rename_role and delete_role are the two places this module reaches into
-    `users` — see the dependency map in CONTRIBUTING.md.
-    """
+    """Business rules for creating, renaming, and deleting roles; rename_role/delete_role are the two places this reaches into `users` (see CONTRIBUTING.md)."""
 
     def __init__(self, role_repo: RoleRepository | None = None, role_permission_repo: RolePermissionRepository | None = None):
         self.roles = role_repo or RoleRepository()
@@ -22,8 +18,7 @@ class RoleService:
         return role
 
     def rename_role(self, role: Role, new_name: str) -> Role:
-        """Cascades the rename to every RolePermission row and user referencing
-        this role by name."""
+        """Cascades the rename to every RolePermission row and user referencing this role by name."""
         from users.repositories import UserRepository
 
         old_name = role.name
@@ -51,8 +46,7 @@ class RoleService:
 
 
 class PermissionMatrixService:
-    """Role/permission grant matrix. Admins always show as fully granted;
-    RolePermission rows only govern non-admin roles."""
+    """Role/permission grant matrix; Admins always show as fully granted, since RolePermission rows only govern non-admin roles."""
 
     def __init__(self, role_repo: RoleRepository | None = None, role_permission_repo: RolePermissionRepository | None = None):
         self.roles = role_repo or RoleRepository()

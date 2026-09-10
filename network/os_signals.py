@@ -1,7 +1,4 @@
-"""Independent OS-fingerprinting signals — nmap's own vote is gathered
-separately in os_fingerprint.py, everything else (banners, mDNS, SSDP,
-NetBIOS, MAC vendor) lives here. Each signal names a `family`, a human
-`detail`, and a `weight` so os_fingerprint.py can fuse them together."""
+"""Independent OS-fingerprinting signals (banners, mDNS, SSDP, NetBIOS, MAC vendor); nmap's own vote lives in os_fingerprint.py. Each signal has a `family`, `detail`, and `weight` for fusion there."""
 
 import re
 import socket
@@ -19,12 +16,7 @@ SSDP_TIMEOUT_S = 1.5
 
 LINUX_DISTRO_PATTERN = re.compile(r"(Ubuntu|Debian|Raspbian|CentOS|Fedora|Alpine|openSUSE)", re.I)
 
-# A device's MAC vendor (OUI, its first 3 bytes) only counts as an OS signal
-# when that vendor makes single-purpose hardware for one OS — most vendors
-# (Dell, Intel, TP-Link, etc.) sell chips/boards that run anything, so
-# they're deliberately left out rather than guessed. Kept small and correct
-# on purpose: a short list of vendors we're actually sure about beats a long
-# one that's half wrong.
+# A MAC vendor only counts as a signal when it makes single-purpose hardware for one OS — kept small and correct rather than broad and half-wrong.
 OUI_FAMILY_HINTS = {
     "b8:27:eb": {"vendor": "Raspberry Pi Foundation", "family": "Linux"},
     "dc:a6:32": {"vendor": "Raspberry Pi Foundation", "family": "Linux"},
@@ -51,8 +43,6 @@ def collect_oui_signal(mac: str | None) -> dict | None:
 
 
 def _grab_banner(ip: str, port: int, probe: str | None = None) -> str | None:
-    """Connects to `port`, optionally sends `probe` once connected, and
-    returns whatever text comes back before the timeout."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     data = b""
     try:
@@ -73,9 +63,7 @@ def _grab_banner(ip: str, port: int, probe: str | None = None) -> str | None:
 
 
 def _classify_ssh_banner(banner: str) -> dict | None:
-    """SSH sends its identification banner unprompted (RFC 4253). Only a
-    distro-tagged banner is unambiguous — a bare "OpenSSH_x.y" is just as
-    common on macOS, so it isn't voted on."""
+    """SSH sends its banner unprompted (RFC 4253); only a distro-tagged banner is unambiguous enough to vote on."""
     match = LINUX_DISTRO_PATTERN.search(banner)
     if not match:
         return None
@@ -83,8 +71,7 @@ def _classify_ssh_banner(banner: str) -> dict | None:
 
 
 def _classify_http_banner(banner: str) -> dict | None:
-    """HTTP `Server:` header — only voted on when it names an OS/distro
-    explicitly; a bare "nginx"/"Apache" runs on every platform."""
+    """HTTP `Server:` header — only voted on when it names an OS/distro explicitly, since a bare "nginx"/"Apache" runs anywhere."""
     match = re.search(r"^Server:\s*(.+)$", banner, re.I | re.M)
     if not match:
         return None
@@ -98,8 +85,7 @@ def _classify_http_banner(banner: str) -> dict | None:
 
 
 def collect_banner_signals(ip: str) -> list[dict]:
-    """SSH (22) and an HTTP `Server:` header (80) — the two ports that hand
-    back a plain-text banner without any protocol negotiation."""
+    """SSH (22) and HTTP's `Server:` header (80) — the two ports that hand back a plain-text banner with no protocol negotiation."""
     ssh_banner, http_banner = run_parallel(
         lambda: _grab_banner(ip, 22),
         lambda: _grab_banner(ip, 80, f"GET / HTTP/1.0\r\nHost: {ip}\r\n\r\n"),
@@ -113,8 +99,7 @@ def collect_banner_signals(ip: str) -> list[dict]:
 
 
 def _classify_ssdp_server(server: str) -> dict | None:
-    """SSDP's `SERVER:` header is more standardized than HTTP's, so it's
-    trusted for Android/macOS too, not just Windows/Linux."""
+    """SSDP's `SERVER:` header is more standardized than HTTP's, so it's trusted for Android/macOS too."""
     if re.search(r"android", server, re.I):
         return {"source": "ssdp-server", "family": "Android", "detail": f"SSDP SERVER header: {server}", "weight": 3}
     if re.search(r"windows", server, re.I):
@@ -128,8 +113,7 @@ def _classify_ssdp_server(server: str) -> dict | None:
 
 
 def collect_ssdp_signal(ip: str) -> list[dict]:
-    """SSDP (UPnP) M-SEARCH — answered by some Android phones and most
-    smart-TV/media/IoT devices even when mDNS is silent."""
+    """SSDP (UPnP) M-SEARCH — answered by some Android phones and most smart-TV/IoT devices even when mDNS is silent."""
     response = query_ssdp(ip, SSDP_TIMEOUT_S)
     server = (response or {}).get("headers", {}).get("SERVER")
     if not server:
@@ -143,10 +127,7 @@ def _family_from_apple_model(model: str) -> str:
 
 
 def collect_mdns_signals(ip: str) -> list[dict]:
-    """mDNS/Bonjour enrichment. `_device-info._tcp` gives an Apple device's
-    real model — the strongest non-nmap signal we have. `_smb`/`_googlecast`
-    are kept as weak hints only; AirPlay/HomeKit are left out since they
-    can't tell macOS, iOS, and tvOS apart."""
+    """mDNS/Bonjour enrichment: `_device-info._tcp` gives an Apple device's real model, the strongest non-nmap signal; `_smb`/`_googlecast` are weak hints only."""
     device_info, smb, cast = run_parallel(
         lambda: query_service_for_ip("_device-info._tcp.local", ip, MDNS_ENRICH_TIMEOUT_S),
         lambda: query_service_for_ip("_smb._tcp.local", ip, MDNS_ENRICH_TIMEOUT_S),
@@ -169,8 +150,7 @@ def collect_mdns_signals(ip: str) -> list[dict]:
 
 
 def ttl_signal(ttl: int | None) -> dict | None:
-    """Weakest fallback signal — only voted when it isn't ambiguous:
-    64-or-under TTL is shared by Linux, macOS, and Android."""
+    """Weakest fallback signal — skipped when ambiguous, since 64-or-under TTL is shared by Linux, macOS, and Android."""
     if ttl is None:
         return None
     if ttl > 128:
@@ -181,8 +161,7 @@ def ttl_signal(ttl: int | None) -> dict | None:
 
 
 def port_signals(open_ports: list[int]) -> list[dict]:
-    """Which of the already-probed liveness ports are open is itself weak
-    OS evidence — RDP in particular is close to Windows-exclusive by default."""
+    """Open liveness ports are weak OS evidence too — RDP in particular is close to Windows-exclusive by default."""
     signals = []
     if 3389 in open_ports:
         signals.append({"source": "port-3389", "family": "Windows", "detail": "RDP port open", "weight": 2})

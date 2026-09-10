@@ -1,6 +1,4 @@
-"""SSDP (UPnP discovery) — a multicast query that live devices answer by
-naming their OS in the SERVER header. Some Android phones and most
-smart-TV/media devices answer this even when mDNS doesn't."""
+"""SSDP (UPnP discovery) — devices answer a multicast query by naming their OS in the SERVER header, even when mDNS doesn't."""
 
 import socket
 
@@ -22,8 +20,7 @@ def _parse_ssdp_headers(raw: str) -> dict:
 
 
 def query_ssdp(ip: str, timeout_s: float) -> dict | None:
-    """Sends an SSDP M-SEARCH and returns the first reply from `ip` —
-    devices reply directly to us, unlike mDNS's shared multicast replies."""
+    """Sends an SSDP M-SEARCH and returns the first reply from `ip` — replies come directly to us, unlike mDNS's shared multicast."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 4)

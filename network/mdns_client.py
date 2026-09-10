@@ -1,6 +1,4 @@
-"""mDNS (Bonjour) — multicast question + a matching answer/additional record
-in a reply, within a timeout. One socket per lookup (request-scoped), unlike
-a long-lived shared listener, since each Django request is its own lookup."""
+"""mDNS (Bonjour) — multicast question + matching answer within a timeout; one socket per lookup since each Django request is its own lookup."""
 
 import socket
 
@@ -12,8 +10,7 @@ MDNS_PORT = 5353
 
 
 def _query_until(name: str, qtype: int, timeout_s: float, extract):
-    """Sends one mDNS question and returns extract(message) for the first
-    response where that isn't None, or None once timeout_s elapses."""
+    """Sends one mDNS question and returns extract(message) for the first response where that isn't None, or None after timeout_s."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -38,8 +35,7 @@ def _query_until(name: str, qtype: int, timeout_s: float, extract):
 
 
 def resolve_ptr(ptr_name: str, timeout_s: float) -> str | None:
-    """Reverse-PTR lookup — the main way Apple devices (and a growing number
-    of Android/IoT ones) announce a name over mDNS."""
+    """Reverse-PTR lookup — the main way Apple devices (and increasingly Android/IoT) announce a name over mDNS."""
 
     def extract(message):
         for answer in message["answers"]:
@@ -51,11 +47,7 @@ def resolve_ptr(ptr_name: str, timeout_s: float) -> str | None:
 
 
 def query_service_for_ip(service_type: str, ip: str, timeout_s: float) -> dict:
-    """Asks for `service_type` and matches a reply to `ip` via its A record —
-    mDNS bundles SRV/TXT/A together, so one query both confirms the service
-    and reads its TXT `model=`. Matching within a single packet (not across
-    all replies) matters: several devices can answer the same broadcast, and
-    mixing one device's A record with another's TXT would misattribute the model."""
+    """Asks for `service_type`, matching a reply to `ip` via its A record so one query both confirms the service and reads its TXT `model=`; matching within a single packet avoids mixing one device's A with another's TXT."""
 
     def extract(message):
         additionals = message["additionals"]

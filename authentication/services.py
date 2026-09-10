@@ -10,10 +10,7 @@ from users.repositories import UserRepository
 
 
 class AuthenticationService:
-    """Owns the account-security policies layered on top of plain JWT auth:
-    login lockout, refresh-after-password-change rejection, and self-service
-    password change (which invalidates every outstanding session).
-    """
+    """Owns the account-security policies layered on plain JWT auth: login lockout, refresh-after-password-change rejection, and password change (which invalidates every session)."""
 
     def __init__(self, user_repo: UserRepository | None = None):
         self.users = user_repo or UserRepository()

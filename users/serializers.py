@@ -5,8 +5,7 @@ from users.services import UserService
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Read shape for the users list/detail — derives `status` from `is_active` so the
-    frontend never has to know about the boolean."""
+    """Read shape for the users list/detail; derives `status` from `is_active` so the frontend never sees the boolean."""
 
     status = serializers.SerializerMethodField()
 
@@ -19,9 +18,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserWriteSerializer(serializers.ModelSerializer):
-    """Create/update shape. `status` is accepted as active/suspended and mapped to
-    `is_active`; `password` is required on create only (updates don't change it).
-    Role validity and the actual persistence are handled by UserService."""
+    """Create/update shape: `status` (active/suspended) maps to `is_active`; `password` is required only on create. Role validity and persistence are handled by UserService."""
 
     status = serializers.ChoiceField(choices=["active", "suspended"], required=False)
     password = serializers.CharField(write_only=True, required=False, min_length=8)

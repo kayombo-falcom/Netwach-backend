@@ -1,9 +1,4 @@
-"""Live Wi-Fi/Ethernet status of whichever interface carries the default
-route, read straight from iproute2's JSON output, `iw`, and sysfs. This runs
-inside a Linux container regardless of host OS (see AGENTS.md), so this code
-needs no Windows-specific equivalent — only the container's network_mode
-needs real host-network visibility, which is a Docker/WSL2 config concern,
-not a code one."""
+"""Reads live Wi-Fi/Ethernet status via iproute2, iw, and sysfs; runs in a Linux container regardless of host OS, so no Windows code path is needed."""
 
 import logging
 import os
@@ -51,8 +46,7 @@ def _get_addr_info(dev):
 
 
 def _is_wireless_interface(dev: str) -> bool:
-    """The presence of a `wireless` subdirectory is the standard,
-    driver-independent way the kernel marks a Wi-Fi interface."""
+    """A `wireless` subdirectory is the kernel's standard way to mark a Wi-Fi interface."""
     return os.path.isdir(f"/sys/class/net/{dev}/wireless")
 
 
@@ -109,14 +103,12 @@ def _freq_to_band_channel(freq_mhz: int):
 
 
 def _rssi_to_percent(rssi_dbm: int) -> float:
-    """`iw` reports dBm only — the same linear approximation NetworkManager
-    uses (-100 dBm -> 0%, -50 dBm or better -> 100%)."""
+    """Same linear approximation NetworkManager uses to turn dBm into a percent (-100dBm -> 0%, -50dBm+ -> 100%)."""
     return max(0.0, min(100.0, 2 * (rssi_dbm + 100)))
 
 
 def _radio_type_from_bitrate_line(line: str | None) -> str | None:
-    """The bitrate line's MCS-scheme prefix is the only place `iw` names the
-    Wi-Fi generation — a bare "MCS" with no VHT/HE/EHT prefix means 802.11n."""
+    """The bitrate line's MCS-scheme prefix is the only place `iw` names the Wi-Fi generation; a bare "MCS" means 802.11n."""
     if not line:
         return None
     if re.search(r"EHT-MCS", line, re.I):
@@ -223,8 +215,7 @@ def get_current_connection() -> dict:
 
 
 def read_neighbor_table(local_ip: str) -> list[dict]:
-    """This host's ARP/neighbor table — entries still resolving
-    ("INCOMPLETE") or that gave up ("FAILED") have no `lladdr` and are skipped."""
+    """Entries still resolving or that gave up have no `lladdr` and are skipped."""
     neighbors = run_json("ip", ["-j", "neigh", "show"]) or []
     return [{"ip": n["dst"], "mac": normalize_mac(n["lladdr"])} for n in neighbors if n.get("lladdr")]
 
@@ -242,9 +233,7 @@ def ping_once(ip: str, timeout_ms: int) -> dict:
 
 
 def measure_packet_loss(target: str, count: int, timeout_ms: int) -> dict | None:
-    """Sends `count` pings in one call and reads iputils' own summary line —
-    one process instead of `count` of them. At 100% loss `ping` exits
-    non-zero, so `run()` still returns its stdout rather than raising."""
+    """Sends `count` pings in one call and parses iputils' summary line; `run()` still returns stdout even though `ping` exits non-zero at 100% loss."""
     stdout = run("ping", _ping_args(target, count, timeout_ms))
     match = re.search(r"(\d+) packets transmitted, (\d+) (?:packets )?received,.*?([\d.]+)% packet loss", stdout, re.I)
     if not match:

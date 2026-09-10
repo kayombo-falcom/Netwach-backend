@@ -1,6 +1,4 @@
-"""Best-effort hostname for a LAN IP. Reverse DNS rarely works on a home
-network, so NetBIOS and mDNS ask the device itself instead. Each is only
-tried if the previous one came up empty."""
+"""Best-effort hostname for a LAN IP: reverse DNS rarely works on home networks, so NetBIOS and mDNS are tried next, each only if the prior one came up empty."""
 
 import socket
 import threading
@@ -15,11 +13,7 @@ MDNS_TIMEOUT_S = 0.6
 
 
 def _resolve_dns_ptr(ip: str) -> str | None:
-    """Classic reverse DNS — only useful if the router runs a DNS server
-    that tracks PTR records for LAN clients, which most consumer routers
-    don't. Raced against a timeout on a daemon thread rather than blocking
-    on the OS resolver's own (much longer) timeout; the loser is abandoned,
-    not cancelled — same as the original's Promise.race."""
+    """Classic reverse DNS — only works if the router tracks PTR records, which most consumer routers don't; raced on a daemon thread against a timeout rather than blocking on the OS resolver's own longer one."""
     result: dict = {}
     done = threading.Event()
 
@@ -37,9 +31,7 @@ def _resolve_dns_ptr(ip: str) -> str | None:
 
 
 def _resolve_mdns_name(ip: str) -> str | None:
-    """mDNS (Bonjour) reverse-PTR query over multicast — asks the device
-    directly, the main way Apple devices (and a growing number of
-    Android/IoT ones) announce a name."""
+    """mDNS (Bonjour) reverse-PTR query over multicast — asks the device directly, the way Apple (and increasingly Android/IoT) devices announce a name."""
     ptr_name = ".".join(reversed(ip.split("."))) + ".in-addr.arpa"
     return resolve_ptr(ptr_name, MDNS_TIMEOUT_S)
 

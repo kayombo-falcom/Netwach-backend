@@ -1,6 +1,4 @@
-"""NetBIOS Name Service (NBNS), RFC 1002 §4.2 — a direct "Node Status" query
-to UDP port 137, asking a device for its own name with zero router/DNS
-support required. Only Windows/SMB devices with NetBIOS still enabled answer."""
+"""NetBIOS Name Service (NBNS), RFC 1002 §4.2 — a direct Node Status query to UDP port 137; only Windows/SMB devices with NetBIOS enabled answer."""
 
 import random
 import socket

@@ -1,18 +1,6 @@
-"""Redirects known LAN devices' traffic through this host by poisoning ARP
-caches, so dns_capture.py's passive read of eth0 sees their real DNS queries
-instead of only broadcast/multicast chatter — see the plan this was built
-from for why passive capture alone can't see other devices' unicast traffic.
-
-Hand-rolled (struct.pack over a raw socket), matching the rest of network/ —
-no scapy, no external arp-spoofing tool.
-
-SAFETY: this can disrupt every device's connectivity on the LAN if
-misconfigured. Off by default (ARP_MITM_ENABLED). Only ever targets devices
-already known to this app (an existing NetworkDevice row) and continuously
-re-poisons rather than spoofing once, so it fails safe: stop the process
-(gracefully or by crash) and every victim's ARP cache naturally reverts to
-the truth within its own normal timeout, even with no cleanup code involved.
-"""
+"""Poisons ARP caches to redirect known LAN devices' traffic through this host, so dns_capture.py can see their DNS queries (which passive capture alone can't reach).
+Hand-rolled over a raw socket, no scapy, matching the rest of network/.
+SAFETY: can disrupt LAN connectivity if misconfigured. Off by default (ARP_MITM_ENABLED); only targets known devices and continuously re-poisons, so stopping the process lets every victim's ARP cache safely revert on its own."""
 
 import signal
 import socket
@@ -41,10 +29,7 @@ def _mac_to_bytes(mac: str) -> bytes:
 def build_arp_reply(
     *, src_mac: bytes, dst_mac: bytes, sender_ip: str, sender_mac: bytes, target_ip: str, target_mac: bytes,
 ) -> bytes:
-    """One unsolicited ARP reply frame telling `target_mac`/`target_ip` that
-    `sender_ip` is at `sender_mac` — the lie. `src_mac`/`dst_mac` are the
-    frame's own Ethernet addressing (who's physically sending/receiving it),
-    independent of the ARP payload's (possibly false) claim."""
+    """One unsolicited ARP reply telling `target_mac`/`target_ip` that `sender_ip` is at `sender_mac` (the lie); `src_mac`/`dst_mac` are just the frame's real Ethernet addressing."""
     ethernet = dst_mac + src_mac + struct.pack(">H", ETHERTYPE_ARP)
     arp = (
         struct.pack(">HHBBH", ARP_HTYPE_ETHERNET, ARP_PTYPE_IPV4, ARP_HLEN, ARP_PLEN, ARP_OP_REPLY)
@@ -65,10 +50,7 @@ def _set_ip_forward(value: str) -> None:
 
 
 def _resolve_targets(gateway_ip: str) -> tuple[dict | None, list[dict]]:
-    """(gateway {ip, mac}, [devices {ip, mac}, ...]) for whichever known
-    NetworkDevice rows currently have a resolvable real MAC in the live ARP
-    table — anything else (unknown MAC, device not currently on the LAN) is
-    silently excluded, not guessed at."""
+    """(gateway {ip, mac}, [devices {ip, mac}, ...]) for known NetworkDevice rows with a resolvable MAC in the live ARP table; anything else is silently excluded, not guessed."""
     from devices.services import DeviceService
 
     neighbor_mac_by_ip = {n["ip"]: n["mac"] for n in read_neighbor_table(gateway_ip)}
@@ -105,12 +87,7 @@ def _poison_once(sock: socket.socket, this_mac: bytes, gateway: dict, targets: l
 
 
 def _unspoof(sock: socket.socket, this_mac: bytes, gateway: dict, targets: list[dict]) -> None:
-    """One pass of corrective, truthful ARP replies — reverses the poison
-    immediately instead of waiting for cache expiry. Framed from this host's
-    own MAC (same as _poison_once) — only the ARP payload's sender_mac
-    carries the (now truthful) claim; using someone else's MAC as our own
-    Ethernet source would needlessly confuse switch MAC-address tables right
-    when we want a fast, clean recovery."""
+    """One pass of truthful ARP replies that reverses the poison immediately instead of waiting for cache expiry; framed from this host's own MAC (like _poison_once) so switches' MAC tables aren't confused during recovery."""
     gateway_mac = _mac_to_bytes(gateway["mac"])
     for target in targets:
         target_mac = _mac_to_bytes(target["mac"])

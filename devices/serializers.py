@@ -28,11 +28,7 @@ class DeviceActivitySerializer(serializers.ModelSerializer):
 
 
 class DeviceDetectionSerializer(serializers.Serializer):
-    """Write shape for POST /devices/detection/ — mirrors the "detected"
-    branch of the frontend's OsDetectionResult (see os-fingerprint.ts).
-    `detection_method` isn't accepted from the client: every result today
-    comes from remote fingerprinting, so the service always records it as
-    "estimated" until a self-reporting agent can produce a "verified" one."""
+    """Write shape for POST /devices/detection/; `detection_method` isn't client-supplied since every result today is "estimated" until self-reporting exists."""
 
     mac = serializers.RegexField(MAC_PATTERN)
     ip = serializers.IPAddressField(protocol="IPv4")

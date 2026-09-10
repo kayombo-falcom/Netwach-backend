@@ -18,9 +18,7 @@ class DeviceListView(generics.ListAPIView):
 
 
 class DeviceDetectionView(APIView):
-    """Persists an OS-detection result produced by the frontend's live scan
-    engine. Upserts by MAC, so re-running detection on a known device updates
-    its existing record instead of duplicating it."""
+    """Persists an OS-detection result from the frontend's live scan; upserts by MAC so re-running detection updates the existing record."""
 
     permission_classes = [HasPermission(Permission.DEVICES_MANAGE)]
 
@@ -32,9 +30,7 @@ class DeviceDetectionView(APIView):
 
 
 class DeviceActivityListView(generics.ListAPIView):
-    """A device's recent activity feed, most recent first — the device
-    drawer's "Recent activity" section. 404s for a MAC we've never
-    persisted (no detection has run for it yet), not just an empty list."""
+    """A device's recent activity feed, most recent first; 404s for a MAC never persisted rather than returning an empty list."""
 
     serializer_class = DeviceActivitySerializer
     permission_classes = [HasPermission(Permission.DEVICES_VIEW)]

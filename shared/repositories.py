@@ -6,11 +6,7 @@ ModelT = TypeVar("ModelT", bound=Model)
 
 
 class BaseRepository(Generic[ModelT]):
-    """Common read/delete operations shared by every module's repository.
-
-    Module repositories subclass this and set `model`, adding whatever
-    domain-specific queries they need on top.
-    """
+    """Common read/delete operations shared by every module's repository; subclasses set `model` and add their own domain-specific queries."""
 
     model: type[ModelT]
 

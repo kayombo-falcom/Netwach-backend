@@ -7,9 +7,7 @@ CLOUDFLARE_META_URL = "https://speed.cloudflare.com/meta"
 
 
 def get_network_meta() -> dict:
-    # Cloudflare's meta endpoint rejects requests that look like bare bot
-    # traffic (default User-Agent, or a cross-origin Origin header). A
-    # browser UA + same-site Referer is what its own speed test page sends.
+    # Cloudflare's meta endpoint rejects bot-looking requests, so mimic its own speed-test page's headers.
     req = urllib.request.Request(
         CLOUDFLARE_META_URL,
         headers={

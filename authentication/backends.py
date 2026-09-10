@@ -7,14 +7,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class IdleTimeoutJWTAuthentication(JWTAuthentication):
-    """JWTAuthentication plus the idle-session-timeout and password-change policies.
-
-    A token that is otherwise valid stops authenticating once its user has been
-    inactive for longer than SECURITY_IDLE_SESSION_TIMEOUT_MINUTES, or once it was
-    issued before the user's password was last changed — forcing re-login in both
-    cases even though the token itself hasn't expired yet. Every authenticated
-    request refreshes the user's activity timestamp.
-    """
+    """JWTAuthentication plus idle-session-timeout and password-change policies: a token stops authenticating after too much inactivity or if issued before the last password change, even though it hasn't expired. Every authenticated request refreshes the activity timestamp."""
 
     def authenticate(self, request):
         result = super().authenticate(request)

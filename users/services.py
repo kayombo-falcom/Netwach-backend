@@ -6,9 +6,7 @@ from users.repositories import UserRepository
 
 
 class UserService:
-    """Owns user creation/update, including the "role must be real" invariant —
-    the one place `users` reaches into `authorization`.
-    """
+    """Owns user creation/update, including the "role must be real" invariant — the one place `users` reaches into `authorization`."""
 
     def __init__(self, user_repo: UserRepository | None = None, role_repo: RoleRepository | None = None):
         self.users = user_repo or UserRepository()

@@ -36,8 +36,7 @@ class RefreshView(APIView):
 
 
 class ChangePasswordView(APIView):
-    """Self-service password change. Succeeding invalidates every outstanding
-    session/token for the user, including the one used to make this request."""
+    """Self-service password change; succeeding invalidates every outstanding session/token for the user, including this request's own."""
 
     def post(self, request: Request) -> Response:
         serializer = ChangePasswordRequestSerializer(data=request.data)
@@ -47,12 +46,7 @@ class ChangePasswordView(APIView):
 
 
 class MeView(APIView):
-    """Confirms the bearer token is valid and its user still exists and is active.
-
-    IdleTimeoutJWTAuthentication already re-fetches the user from the database per
-    request and rejects the token if the user was deleted or deactivated since it
-    was issued.
-    """
+    """Confirms the bearer token is valid and its user still exists and is active — IdleTimeoutJWTAuthentication already rejects a token for a deleted/deactivated user."""
 
     def get(self, request: Request) -> Response:
         user = request.user

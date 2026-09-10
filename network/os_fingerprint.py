@@ -1,18 +1,5 @@
-"""Checks one device's OS on demand. Confirms it's on our own LAN and
-reachable, then gathers several independent signals in parallel — nmap,
-NetBIOS, banners, mDNS, SSDP, open ports, TTL, MAC vendor — and fuses them
-into one verdict. No single signal decides alone. `mac`, when known, only
-feeds the OUI vendor signal — everything else here is IP-addressed.
-
-nmap also runs -sV alongside -O, so whatever it finds on the device's open
-ports (service name, product, version) rides along as `services` on the
-result — it isn't a signal in the OS fusion, just extra detail about the
-same host.
-
-Every real result comes from remote network fingerprinting, never from
-asking the device itself — "estimated" always, until a self-reporting agent
-exists to produce a "verified" one instead.
-"""
+"""Checks one device's OS on demand by gathering independent signals (nmap, NetBIOS, banners, mDNS, SSDP, ports, TTL, MAC vendor) in parallel and fusing them — no signal decides alone, and `mac` only feeds the OUI vendor hint.
+nmap's -sV output rides along as `services` (extra detail, not a fusion signal); every result is "estimated" from remote fingerprinting, never a "verified" self-report."""
 
 import re
 import socket
@@ -29,16 +16,13 @@ REACHABILITY_TIMEOUT_S = 0.5
 REACHABILITY_TIMEOUT_MS = int(REACHABILITY_TIMEOUT_S * 1000)
 NMAP_TIMEOUT_S = 30
 
-# A firewalled device (Windows default, many phones) drops ICMP but still
-# answers TCP — even a refusal proves it's alive.
+# A firewalled device (Windows default, many phones) drops ICMP but still answers TCP — even a refusal proves it's alive.
 TCP_PROBE_PORTS = [80, 443, 445, 139, 3389, 22, 8080]
 TCP_PROBE_TIMEOUT_S = 0.4
 
-# A winning family needs at least this much total weight — one weak signal
-# alone (e.g. just a TTL bucket) isn't enough to call it.
+# A winning family needs at least this much total weight — one weak signal alone isn't enough to call it.
 MIN_TOTAL_WEIGHT = 3
-# ...and needs to clearly lead the runner-up, not just edge it out, or the
-# result is too ambiguous to report as "detected".
+# ...and needs to clearly lead the runner-up, not just edge it out, or the result is too ambiguous to report.
 MIN_MARGIN_RATIO = 1.5
 
 IPV4_PATTERN = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
@@ -49,8 +33,7 @@ def _parse_attributes(tag: str) -> dict:
 
 
 def _parse_best_os_match(xml: str) -> dict | None:
-    """Picks nmap's highest-accuracy <osmatch> from its XML report, pairing
-    each with its nested <osclass> (family/version/device type)."""
+    """Picks nmap's highest-accuracy <osmatch>, paired with its nested <osclass> (family/version/device type)."""
     best = None
     for match in re.finditer(r"<osmatch\s+([^>]*?)/?>([\s\S]*?)(?:</osmatch>|$)", xml):
         attrs = _parse_attributes(match.group(1))
@@ -80,9 +63,7 @@ def _host_is_up(xml: str) -> bool:
 
 
 def _parse_open_services(xml: str) -> list[dict]:
-    """Every open port -sV fingerprinted, with whatever service/product/
-    version it identified. Closed/filtered ports are skipped — nmap already
-    summarizes those as a count, not worth listing individually."""
+    """Every open port -sV fingerprinted; closed/filtered ports are skipped since nmap already summarizes those as a count."""
     services = []
     for port_match in re.finditer(r"<port\s+([^>]*)>([\s\S]*?)</port>", xml):
         port_attrs = _parse_attributes(port_match.group(1))
@@ -133,9 +114,7 @@ def _tcp_probe(ip: str, port: int) -> dict:
 
 
 def _check_reachability(ip: str) -> dict:
-    """Runs ICMP and the TCP probes together rather than ICMP-then-fallback,
-    since which ports are open is itself a signal. Two pings, not one — a
-    single dropped packet shouldn't mark a live device unreachable."""
+    """Runs ICMP and TCP probes together, since open ports are themselves a signal; two pings so one dropped packet doesn't mark a live device unreachable."""
     ping1, ping2, *tcp_results = run_parallel(
         lambda: ping_once(ip, REACHABILITY_TIMEOUT_MS),
         lambda: ping_once(ip, REACHABILITY_TIMEOUT_MS),
@@ -148,14 +127,8 @@ def _check_reachability(ip: str) -> dict:
 
 
 def _run_nmap(ip: str) -> dict:
-    """-Pn skips nmap's own ping (we already checked). --max-os-tries 2 /
-    --osscan-guess let nmap try a bit harder on an ambiguous fingerprint —
-    safe now that nmap is just one vote, not the final answer. --top-ports
-    100 / -T4 keep it fast for a LAN scan. -sV fingerprints whatever's
-    listening on those same 100 ports — no extra ports scanned, just deeper
-    inspection of the ones already in scope. --host-timeout lets nmap give
-    up cleanly instead of us killing it. Needs CAP_NET_RAW/CAP_NET_ADMIN
-    (granted in docker-compose.yml) for -O's raw-packet fingerprinting."""
+    """-Pn skips nmap's own ping (already checked); --max-os-tries/--osscan-guess try harder since nmap is just one vote now; --top-ports 100 -T4 keep it fast; -sV fingerprints those same ports; --host-timeout avoids us killing it.
+    Needs CAP_NET_RAW/CAP_NET_ADMIN (granted in docker-compose.yml) for -O's raw-packet fingerprinting."""
     if not _is_nmap_available():
         return {"status": "unavailable"}
 
@@ -177,8 +150,7 @@ def _run_nmap(ip: str) -> dict:
 
 
 def _normalize_family(raw: str) -> str | None:
-    """Maps nmap's free-text OS name to our canonical buckets. Device types
-    like router/printer don't map to a family, so they get no vote."""
+    """Maps nmap's free-text OS name to canonical buckets; device types like router/printer get no vote."""
     lower = raw.lower()
     if "windows" in lower:
         return "Windows"
@@ -194,9 +166,7 @@ def _normalize_family(raw: str) -> str | None:
 
 
 def _fuse_signals(signals: list[dict]) -> dict | None:
-    """Sums each family's weight. The winner needs both a minimum total and
-    a clear lead over the runner-up, so agreement between sources decides —
-    not one engine's own confidence."""
+    """Sums each family's weight; the winner needs a minimum total and a clear lead over the runner-up, so agreement decides, not one engine's confidence."""
     totals: dict[str, float] = {}
     for signal in signals:
         totals[signal["family"]] = totals.get(signal["family"], 0) + signal["weight"]
@@ -217,8 +187,7 @@ def _fuse_signals(signals: list[dict]) -> dict | None:
 
 
 def _to_signal_details(signals: list[dict], only_family: str | None = None) -> list[dict]:
-    """Sorted strongest-first so the response surfaces the most
-    authoritative evidence up top."""
+    """Sorted strongest-first so the most authoritative evidence surfaces up top."""
     filtered = [s for s in signals if only_family is None or s["family"] == only_family]
     filtered.sort(key=lambda s: s["weight"], reverse=True)
     return [{"source": s["source"], "detail": s["detail"]} for s in filtered]
@@ -276,8 +245,7 @@ def detect_os(ip: str, mac: str | None = None) -> dict:
             "services": services,
         }
 
-    # Only fail outright if nothing came back at all — a device with no nmap
-    # but a NetBIOS/mDNS reply should still show "unknown" with those signals.
+    # Only fail outright if nothing came back at all — a device with just a NetBIOS/mDNS reply should still show "unknown".
     if not signals and nmap_run["status"] != "ok":
         reason = nmap_run["reason"] if nmap_run["status"] == "error" else "OS detection engine is not available on this host"
         return {"status": "engine_unavailable", "reason": reason}

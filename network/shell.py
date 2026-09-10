@@ -8,11 +8,7 @@ DEFAULT_TIMEOUT_S = 10
 
 
 def run_result(command: str, args: list[str], timeout: float = DEFAULT_TIMEOUT_S) -> subprocess.CompletedProcess | None:
-    """Runs a command and returns its CompletedProcess (any exit code), or
-    None if the binary is missing or the call times out. The one place that
-    actually shells out — run()/run_ok() below cover the two common ways
-    callers want the result read; a caller that needs the exit code itself
-    (nmap's raw-privileges check) uses this directly."""
+    """Runs a command and returns its raw CompletedProcess, or None if the binary is missing or it times out — use directly when the exit code itself matters."""
     try:
         return subprocess.run([command, *args], capture_output=True, text=True, timeout=timeout)
     except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -20,16 +16,13 @@ def run_result(command: str, args: list[str], timeout: float = DEFAULT_TIMEOUT_S
 
 
 def run(command: str, args: list[str], timeout: float = DEFAULT_TIMEOUT_S) -> str:
-    """Runs a command and returns its stdout, even on a non-zero exit — ping's
-    summary line still matters at 100% loss. "" if the binary is missing or
-    the call times out."""
+    """Returns a command's stdout even on a non-zero exit, since e.g. ping's summary line matters at 100% loss; "" if the binary is missing or it times out."""
     result = run_result(command, args, timeout=timeout)
     return result.stdout if result else ""
 
 
 def run_ok(command: str, args: list[str], timeout: float = DEFAULT_TIMEOUT_S) -> str | None:
-    """Like run(), but None (not partial stdout) on a non-zero exit — for
-    commands where failure genuinely means "no result", unlike ping above."""
+    """Like run(), but None instead of stdout on a non-zero exit, for commands where failure means no result."""
     result = run_result(command, args, timeout=timeout)
     return result.stdout if result and result.returncode == 0 else None
 
@@ -53,9 +46,7 @@ def normalize_mac(mac: str | None) -> str | None:
 
 
 def run_parallel(*fns):
-    """Runs each zero-arg callable in its own thread and returns results in
-    call order — Python stand-in for `Promise.all` over blocking I/O work
-    (pings, socket probes, subprocess calls)."""
+    """Runs each callable in its own thread and returns results in call order — like Promise.all for blocking I/O work."""
     with ThreadPoolExecutor(max_workers=len(fns)) as pool:
         futures = [pool.submit(fn) for fn in fns]
         return [f.result() for f in futures]

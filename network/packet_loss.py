@@ -1,12 +1,9 @@
 from network.platform_linux import measure_packet_loss
 
-# Cloudflare's public resolver — same provider as the rest of the speed
-# test, and reliable enough that any loss reported is our own path's fault.
+# Cloudflare's public resolver — reliable enough that any loss reported is our own path's fault.
 TARGET = "1.1.1.1"
 
-# Windows paces `ping` sends about 1s apart regardless of -w, so 10 pings is
-# already a ~10s measurement — enough for 10%-granularity without stretching
-# what's meant to be a quick speed test into a much longer wait.
+# ping's default 1s interval makes 10 pings a ~10s measurement — enough for 10%-granularity without a long wait.
 PING_COUNT = 10
 PING_TIMEOUT_MS = 1000
 

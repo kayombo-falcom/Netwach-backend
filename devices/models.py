@@ -2,13 +2,7 @@ from django.db import models
 
 
 class NetworkDevice(models.Model):
-    """A device seen on the LAN, identified by MAC. Live scanning/probing
-    (ARP, ping sweep, nmap OS fingerprinting, mDNS/SSDP/NetBIOS) stays in the
-    Next.js frontend — it depends on that server's own network position, not
-    on where this backend runs. This only persists what the frontend
-    reports, so device identity and OS-detection history survive restarts
-    and repeated scans instead of living only in the browser session.
-    """
+    """A device seen on the LAN, identified by MAC. Live probing lives in the Django backend; this model just persists what it finds, so device identity and OS-detection history survive restarts."""
 
     DETECTION_ESTIMATED = "estimated"
     DETECTION_VERIFIED = "verified"
@@ -37,10 +31,7 @@ class NetworkDevice(models.Model):
 
 
 class DeviceActivity(models.Model):
-    """A domain a device was seen contacting. Read via GET
-    /devices/<mac>/activity/ (the device drawer's "Recent activity" list);
-    nothing writes to it yet — that needs real DNS/traffic-capture
-    infrastructure, a separate feature from this read path."""
+    """A domain a device was seen contacting; read via GET /devices/<mac>/activity/ (the device drawer's "Recent activity" list), written by network's DNS capture."""
 
     domain = models.CharField(max_length=255)
     source = models.CharField(max_length=20)

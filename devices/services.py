@@ -26,9 +26,7 @@ class DeviceService:
         return self.devices.upsert_detection(**kwargs)
 
     def record_dns_query(self, *, mac: str, domain: str) -> DeviceActivity | None:
-        """Logs one DNS query against whichever device already has a
-        NetworkDevice row for this MAC — silently a no-op otherwise, since
-        nothing but OS detection creates that row yet."""
+        """Logs a DNS query against an existing device row; a silent no-op if none exists, since only OS detection creates that row today."""
         device = self.devices.get_by_mac(mac.lower())
         if device is None:
             return None

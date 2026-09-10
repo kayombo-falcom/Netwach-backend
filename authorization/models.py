@@ -1,14 +1,12 @@
 from django.db import models
 
-# Bypasses the permissions matrix entirely (see authorization.permissions.HasPermission).
-# A fixed name, not a row, so it can never be renamed/deleted into zero working admins.
+# Bypasses the permissions matrix entirely; a fixed name, not a row, so it can never be renamed/deleted into zero working admins.
 ADMIN_ROLE_NAME = "Admins"
 STAFF_ROLE_NAME = "Staff"
 
 
 class Role(models.Model):
-    """A named group users can belong to. Admins/Staff are seeded as built-in
-    and can't be renamed or deleted; any other role is admin-managed."""
+    """A named group users can belong to; Admins/Staff are seeded as built-in and can't be renamed or deleted."""
 
     name = models.CharField(max_length=40, unique=True)
     is_builtin = models.BooleanField(default=False)
@@ -22,9 +20,7 @@ class Role(models.Model):
 
 
 class Permission(models.TextChoices):
-    """Catalog of grantable actions. Admins implicitly hold all of them (see
-    authorization.permissions.HasPermission); RolePermission only governs
-    non-admin roles."""
+    """Catalog of grantable actions; Admins implicitly hold all of them, so RolePermission only governs non-admin roles."""
 
     USERS_VIEW = "users.view", "View users"
     USERS_MANAGE = "users.manage", "Create & edit users"
@@ -41,8 +37,7 @@ class Permission(models.TextChoices):
 
 
 class RolePermission(models.Model):
-    """Whether `permission` is granted to `role`. Never consulted for Admins —
-    they always pass (see authorization.permissions.HasPermission)."""
+    """Whether `permission` is granted to `role`; never consulted for Admins, who always pass."""
 
     role = models.CharField(max_length=40)
     permission = models.CharField(max_length=40, choices=Permission.choices)

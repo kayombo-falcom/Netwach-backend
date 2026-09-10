@@ -12,12 +12,7 @@ from network.scanning import scan_connected_devices
 
 
 class SafeGetView(APIView):
-    """A GET-only view that runs `perform(request)` and turns any exception
-    into a uniform 500 — every endpoint here is a live probe that can fail
-    for reasons outside our control (unplugged cable, blocked port, a
-    missing system tool, ...), and none of them should leak a traceback.
-    `perform` returns either the response body, or a Response directly
-    (e.g. a 400 for a bad request) to short-circuit the default 200."""
+    """Runs `perform(request)` and turns any exception into a 500, since these are live probes that can fail for reasons outside our control."""
 
     error_message = "Request failed"
 
@@ -69,13 +64,7 @@ class HostnameLookupView(SafeGetView):
 
 
 class OsDetectView(SafeGetView):
-    """Runs a live nmap-backed OS detection against the requested host, and
-    best-effort persists the result via the devices app so the device
-    list/history survives across scans — "detected" and "unknown" both
-    persist, since either means the device answered and is worth tracking;
-    only "unreachable"/"out_of_scope"/"engine_unavailable" mean no real
-    attempt was made. A storage hiccup here must never fail the detection
-    result the caller is looking at right now."""
+    """Runs OS detection and best-effort persists the result; "detected" and "unknown" both persist since the device answered, but a storage failure must never break the response."""
 
     error_message = "Unable to run OS detection"
     PERSISTABLE_STATUSES = ("detected", "unknown")

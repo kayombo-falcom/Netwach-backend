@@ -1,22 +1,7 @@
-"""Passively captures DNS queries crossing this host's LAN-facing interface
-and turns them into DeviceActivity rows, one per device per query.
-
-This host is the LAN's router — every device's outbound DNS query already
-transits it pre-NAT, so a raw socket bound to that interface sees it without
-needing to be in anyone's traffic path deliberately (no ARP spoofing). A
-captured frame's own Ethernet source MAC is the querying device's real MAC:
-since the device is one L2 hop away, there's no ARP-cache staleness to worry
-about the way an IP-keyed lookup would have.
-
-Hand-rolled instead of adding scapy or shelling out to Zeek, matching the
-rest of network/ (see dns_wire.py's own rationale) — this is the first
-promiscuous-capture socket in the app; everything else here sends a query
-and waits for a unicast reply.
-
-Scope: UDP DNS only. DNS-over-TCP, DoH, DoT, and any query sent over IPv6
-transport are all invisible to this technique — permanent limitations of
-passive IPv4/UDP capture, not bugs to fix later.
-"""
+"""Passively captures DNS queries on this host's LAN-facing interface into DeviceActivity rows.
+This host is the LAN's router, so every device's DNS query already transits it pre-NAT — no ARP spoofing needed, and the frame's source MAC is trustworthy since the device is one L2 hop away.
+Hand-rolled over a raw socket rather than scapy/Zeek, matching the rest of network/; the only promiscuous-capture socket in the app.
+Scope: UDP DNS only — DNS-over-TCP, DoH, DoT, and IPv6 queries are permanently invisible to this technique, not bugs to fix."""
 
 import socket
 import struct
@@ -95,9 +80,7 @@ def _parse_dns_query_frame(frame: bytes) -> tuple[str, str] | None:
 
 
 def capture_dns_queries(iface: str, on_query: Callable[[str, str], None]) -> None:
-    """Blocks forever reading every frame crossing `iface`, calling
-    on_query(mac, domain) for each DNS query. A malformed/unexpected frame is
-    skipped, never fatal — only a real socket error propagates."""
+    """Blocks forever reading frames on `iface`, calling on_query(mac, domain) per DNS query; malformed frames are skipped, never fatal."""
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(ETHERTYPE_IPV4))
     sock.bind((iface, 0))
     try:
@@ -126,11 +109,7 @@ def run_forever(iface: str | None = None) -> None:
         try:
             DeviceService().record_dns_query(mac=mac, domain=domain)
         except DjangoDatabaseError:
-            # This process never sees Django's usual request_started/
-            # request_finished signals, so a connection that drops (DB
-            # restart, idle timeout) would otherwise stay broken and fail
-            # silently on every query for the rest of this process's life —
-            # drop it so the next query lazily opens a fresh one.
+            # No Django request signals here to reset a dropped DB connection, so do it manually or every later query fails silently.
             close_old_connections()
         except Exception:
             pass

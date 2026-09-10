@@ -1,21 +1,14 @@
-"""Shared "send one UDP packet, wait for a matching reply" loop used by the
-mDNS/SSDP/NetBIOS probes — one place to get the deadline math right instead
-of three near-identical copies of it."""
+"""Shared "send one UDP packet, wait for a matching reply" loop used by mDNS/SSDP/NetBIOS, so the deadline logic lives in one place."""
 
 import socket
 import time
 
-# Sentinel an on_packet callback returns to mean "not my answer, keep
-# waiting" — distinct from a legitimate stop-and-return-None result (e.g.
-# NetBIOS: the transaction ID matched, but the response had no usable name).
+# Sentinel meaning "not my answer, keep waiting" — distinct from a legitimate stop-and-return-None result.
 CONTINUE = object()
 
 
 def recv_until(sock: socket.socket, timeout_s: float, on_packet):
-    """Loops recvfrom on `sock` until on_packet(data, addr) returns
-    something other than CONTINUE, or timeout_s elapses in total. Re-arms
-    the socket timeout to the *remaining* time each iteration, so a burst of
-    irrelevant packets can't extend the wait past timeout_s."""
+    """Loops recvfrom until on_packet returns something other than CONTINUE, or timeout_s elapses; re-arms the timeout each round so stray packets can't extend the wait."""
     deadline = time.monotonic() + timeout_s
     while True:
         remaining = deadline - time.monotonic()

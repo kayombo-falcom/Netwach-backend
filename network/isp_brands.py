@@ -1,11 +1,4 @@
-"""ASN -> consumer brand name overrides.
-
-IP geolocation providers report the ISP's legal/registry name (from ASN
-WHOIS records), which is often outdated or unrecognizable — e.g. ASN 15399
-resolves to "Wananchi Cable Tanzania" even though the retail brand on the
-router and the bill is "Zuku". Add entries here as they come up; unknown
-ASNs just fall back to the raw registry name.
-"""
+"""ASN -> consumer brand name overrides: IP geolocation gives the ISP's legal/registry name, which is often unrecognizable (e.g. ASN 15399 is "Wananchi Cable Tanzania", branded "Zuku"). Add entries as they come up; unknown ASNs fall back to the registry name."""
 
 ISP_BRAND_BY_ASN = {
     15399: "Zuku",

@@ -1,6 +1,4 @@
-"""Minimal DNS wire-format encode/decode — just enough (A/PTR/TXT, name
-compression) for mDNS questions and responses. Hand-rolled instead of adding
-a dependency, matching the raw-socket approach netbios.py/ssdp.py already use."""
+"""Minimal DNS wire-format encode/decode (A/PTR/TXT, name compression) for mDNS; hand-rolled to match the raw-socket approach used elsewhere in network/."""
 
 import struct
 
@@ -18,8 +16,7 @@ def encode_name(name: str) -> bytes:
 
 
 def decode_name(buf: bytes, offset: int) -> tuple[str, int]:
-    """Returns (name, offset_after_name), following compression pointers
-    (RFC 1035 §4.1.4) without looping back through them for the return offset."""
+    """Returns (name, offset_after_name), following compression pointers (RFC 1035 §4.1.4) without looping through them for the return offset."""
     labels = []
     pos = offset
     jumped = False
@@ -59,9 +56,7 @@ def build_query(questions: list[tuple[str, int]], transaction_id: int = 0) -> by
 
 
 def parse_question(buf: bytes) -> tuple[str, int] | None:
-    """The first question's (name, qtype) from a DNS message — for reading a
-    client's outbound query, unlike parse_message() below which reads a
-    server's answers. None if the buffer is too short or truncated mid-name."""
+    """The first question's (name, qtype) — for reading a client's outbound query, unlike parse_message() which reads a server's answers."""
     if len(buf) < 12:
         return None
 
@@ -77,8 +72,7 @@ def parse_question(buf: bytes) -> tuple[str, int] | None:
 
 
 def parse_message(buf: bytes) -> dict:
-    """Returns {"answers": [...], "additionals": [...]} — each record a dict
-    with name/type/data (rdata decoded for A/PTR/TXT, raw bytes otherwise)."""
+    """Returns {"answers": [...], "additionals": [...]}, each record decoded for A/PTR/TXT and raw bytes otherwise."""
     if len(buf) < 12:
         return {"answers": [], "additionals": []}
 

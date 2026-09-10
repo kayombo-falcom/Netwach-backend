@@ -1,5 +1,4 @@
-"""Pure IPv4 arithmetic, shared by device discovery's host-range sweep and
-OS fingerprinting's scope check."""
+"""Pure IPv4 arithmetic, shared by device discovery's host-range sweep and OS fingerprinting's scope check."""
 
 
 def ip_to_long(ip: str) -> int:
