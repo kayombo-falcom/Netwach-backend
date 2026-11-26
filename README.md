@@ -10,11 +10,11 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 ![nmap](https://img.shields.io/badge/nmap-OS_detection-4682B4)
 
-> 🚧 Active work is on the [`development`](https://github.com/kayombo-falcom/Netwach-backend/tree/development) branch.
+> Active work is on the [`development`](https://github.com/kayombo-falcom/Netwach-backend/tree/development) branch.
 
 Powers the [Netwatch dashboard](https://github.com/kayombo-falcom/Netwatch-frontend). It is a **modular monolith**: one Django app per business area (users, authorization, authentication, network), each with its own models, repositories, services, serializers, views, URLs and tests, plus a `shared/` package. The API is versioned under `/api/v1/`.
 
-## ✨ Features
+## Features
 
 | Area | What it does |
 | --- | --- |
@@ -27,7 +27,7 @@ Powers the [Netwatch dashboard](https://github.com/kayombo-falcom/Netwatch-front
 | DNS capture | Long-running service that logs DNS lookups on the LAN |
 | ARP inspection | Optional ARP-based traffic inspection, **off by default**. Use only on a network you own. |
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 | --- | --- |
@@ -41,7 +41,7 @@ Powers the [Netwatch dashboard](https://github.com/kayombo-falcom/Netwatch-front
 
 **Docker services:** `db` (Postgres) · `web` (API) · `dns-capture` (DNS logger) · `arp-mitm` (optional, off by default)
 
-## 🚀 Getting Started
+## Getting Started
 
 ```bash
 git clone https://github.com/kayombo-falcom/Netwach-backend.git
@@ -69,9 +69,9 @@ python manage.py runserver      # http://localhost:8000
 python manage.py seed_admin
 ```
 
-> On Windows, enable Docker Desktop **Host Networking** and WSL2 **mirrored networking** so the container sees the real LAN. See the [frontend README](https://github.com/kayombo-falcom/Netwatch-frontend/tree/development#-windows-hosts-one-time).
+> On Windows, enable Docker Desktop **Host Networking** and WSL2 **mirrored networking** so the container sees the real LAN. See the [frontend README](https://github.com/kayombo-falcom/Netwatch-frontend/tree/development#windows-hosts-one-time).
 
-## 🔐 Auth endpoints
+## Auth endpoints
 
 | Method | Path | Body | Returns |
 | --- | --- | --- | --- |
@@ -80,7 +80,7 @@ python manage.py seed_admin
 
 Access tokens last 15 minutes, refresh tokens 7 days (rotating). Send `Authorization: Bearer <access>` on authenticated requests.
 
-## 🧰 Useful commands
+## Useful commands
 
 ```bash
 python manage.py makemigrations   # after changing models
@@ -89,6 +89,6 @@ python manage.py check            # validate config without a DB
 python manage.py shell            # shell with models loaded
 ```
 
-## 👤 Author
+## Author
 
 **Hirorims Kayombo** · [Portfolio](https://hirorims.netlify.app/) · [GitHub](https://github.com/kayombo-falcom)
